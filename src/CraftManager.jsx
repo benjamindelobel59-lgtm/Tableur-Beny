@@ -75,16 +75,18 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
+  // ✅ CORRIGÉ : fetch l'item complet qui contient data.recipe
   const fetchRecipe = async (item) => {
     setLoadingRecipe(true);
     try {
       const id = item.ankama_id || item.id;
-      const res = await fetch(API + "/items/equipment/" + id + "/recipe");
-      if (!res.ok) throw new Error("Pas de recette");
+      const res = await fetch(API + "/items/equipment/" + id);
+      if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
-      if (data.entries && Array.isArray(data.entries)) {
+
+      if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         return {
-          ingredients: data.entries.map(function(e) {
+          ingredients: data.recipe.map(function(e) {
             return {
               id: (e.item && (e.item.ankama_id || e.item.id)) || Math.random(),
               name: (e.item && e.item.name) || "",
@@ -96,6 +98,7 @@ export default function CraftManager({ session }) {
       }
       return null;
     } catch (e) {
+      console.error("fetchRecipe error:", e);
       return null;
     } finally {
       setLoadingRecipe(false);
