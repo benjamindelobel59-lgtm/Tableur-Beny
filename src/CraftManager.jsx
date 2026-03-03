@@ -75,7 +75,7 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  // ✅ CORRIGÉ : fetch l'item complet qui contient data.recipe
+  // ✅ CORRIGÉ : fetch chaque ingrédient séparément pour avoir nom + image
   const fetchRecipe = async (item) => {
     setLoadingRecipe(true);
     try {
@@ -85,16 +85,39 @@ export default function CraftManager({ session }) {
       const data = await res.json();
 
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
-        return {
-          ingredients: data.recipe.map(function(e) {
+        const ingredients = await Promise.all(
+          data.recipe.map(async function(e) {
+            const ingId = e.ankama_id || (e.item && (e.item.ankama_id || e.item.id));
+            let name = "";
+            let img = null;
+
+            const urls = [
+              API + "/items/resources/" + ingId,
+              API + "/items/equipment/" + ingId,
+              API + "/items/consumables/" + ingId,
+            ];
+
+            for (const url of urls) {
+              try {
+                const r = await fetch(url);
+                if (r.ok) {
+                  const d = await r.json();
+                  name = d.name || "";
+                  img = (d.image_urls && d.image_urls.icon) || null;
+                  break;
+                }
+              } catch (_) {}
+            }
+
             return {
-              id: (e.item && (e.item.ankama_id || e.item.id)) || Math.random(),
-              name: (e.item && e.item.name) || "",
-              img: (e.item && e.item.image_urls && e.item.image_urls.icon) || null,
+              id: ingId || Math.random(),
+              name,
+              img,
               quantity: e.quantity || 1,
             };
           })
-        };
+        );
+        return { ingredients };
       }
       return null;
     } catch (e) {
