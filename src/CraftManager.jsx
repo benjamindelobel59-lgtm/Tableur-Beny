@@ -66,21 +66,18 @@ export default function CraftManager({ session }) {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      // DofusDB FeathersJS API - use correct bracket notation
-      const base = `${API}/items`;
-      const params = new URLSearchParams();
-      params.set("lang", "fr");
-      params.set("$limit", "20");
-      params.set("$sort[level]", "-1");
-      params.set("name[fr][$search]", q);
-      if (filterType !== "all") params.set("typeId", filterType);
-      if (filterLevel === "1-50") { params.set("level[$gte]", "1"); params.set("level[$lte]", "50"); }
-      else if (filterLevel === "51-100") { params.set("level[$gte]", "51"); params.set("level[$lte]", "100"); }
-      else if (filterLevel === "101-150") { params.set("level[$gte]", "101"); params.set("level[$lte]", "150"); }
-      else if (filterLevel === "151-200") { params.set("level[$gte]", "151"); params.set("level[$lte]", "200"); }
+      // Build URL manually - DofusDB requires literal brackets
+      const enc = encodeURIComponent(q);
+      let url = API + "/items?lang=fr&$limit=20&$sort[level]=-1&name[fr][$iLike]=" + enc + "%25";
+      if (filterType !== "all") url += "&typeId=" + filterType;
+      if (filterLevel === "1-50") url += "&level[$gte]=1&level[$lte]=50";
+      else if (filterLevel === "51-100") url += "&level[$gte]=51&level[$lte]=100";
+      else if (filterLevel === "101-150") url += "&level[$gte]=101&level[$lte]=150";
+      else if (filterLevel === "151-200") url += "&level[$gte]=151&level[$lte]=200";
 
-      const res = await fetch(`${base}?${params.toString()}`);
-      if (!res.ok) throw new Error(`${res.status}`);
+      console.log("Fetching:", url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
       const data = await res.json();
       setSearchResults(data.data || []);
     } catch (e) {
