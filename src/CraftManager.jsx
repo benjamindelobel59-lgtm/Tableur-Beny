@@ -75,7 +75,28 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  // ✅ CORRIGÉ : fetch chaque ingrédient séparément pour avoir nom + image
+  const fetchIngredient = async (ingId) => {
+    const urls = [
+      API + "/items/resources/" + ingId,
+      API + "/items/equipment/" + ingId,
+      API + "/items/consumables/" + ingId,
+    ];
+    for (const url of urls) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) {
+          const d = await r.json();
+          return {
+            name: d.name || "",
+            img: (d.image_urls && d.image_urls.icon) || null,
+          };
+        }
+      } catch (_) {}
+    }
+    return { name: "", img: null };
+  };
+
+  // ✅ CORRIGÉ : on log la recette brute pour trouver la bonne clé d'ID
   const fetchRecipe = async (item) => {
     setLoadingRecipe(true);
     try {
@@ -84,35 +105,27 @@ export default function CraftManager({ session }) {
       if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
 
+      console.log("RAW RECIPE:", JSON.stringify(data.recipe));
+
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         const ingredients = await Promise.all(
           data.recipe.map(async function(e) {
-            const ingId = e.ankama_id || (e.item && (e.item.ankama_id || e.item.id));
-            let name = "";
-            let img = null;
+            // Essaye toutes les clés possibles pour l'ID
+            const ingId =
+              e.item_ankama_id ||
+              e.ankama_id ||
+              e.id ||
+              (e.item && (e.item.ankama_id || e.item.id));
 
-            const urls = [
-              API + "/items/resources/" + ingId,
-              API + "/items/equipment/" + ingId,
-              API + "/items/consumables/" + ingId,
-            ];
+            console.log("Ingredient entry:", JSON.stringify(e), "=> ingId:", ingId);
 
-            for (const url of urls) {
-              try {
-                const r = await fetch(url);
-                if (r.ok) {
-                  const d = await r.json();
-                  name = d.name || "";
-                  img = (d.image_urls && d.image_urls.icon) || null;
-                  break;
-                }
-              } catch (_) {}
-            }
+            if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
 
+            const details = await fetchIngredient(ingId);
             return {
-              id: ingId || Math.random(),
-              name,
-              img,
+              id: ingId,
+              name: details.name,
+              img: details.img,
               quantity: e.quantity || 1,
             };
           })
