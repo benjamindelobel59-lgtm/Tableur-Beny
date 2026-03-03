@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import CraftManager from "./CraftManager.jsx";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -125,6 +126,7 @@ function AuthPage({ onAuth }) {
 // ─── MAIN APP ─────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(null);
+  const [mainTab, setMainTab] = useState("persos");
   const [authLoading, setAuthLoading] = useState(true);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -252,7 +254,7 @@ export default function App() {
                 <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:1,marginTop:2}}>{s.l}</div>
               </div>
             ))}
-            <button onClick={openAdd} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontWeight:700,cursor:"pointer",fontSize:13,boxShadow:"0 4px 20px rgba(99,102,241,0.35)",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ Ajouter</button>
+            {mainTab==="persos" && <button onClick={openAdd} style={{background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontWeight:700,cursor:"pointer",fontSize:13,boxShadow:"0 4px 20px rgba(99,102,241,0.35)",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ Ajouter</button>}
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10}}>
               <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>👤</div>
               <span style={{fontSize:12,color:"#64748b",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span>
@@ -262,7 +264,20 @@ export default function App() {
         </div>
       </nav>
 
-      <div style={{maxWidth:1400,margin:"0 auto",padding:"26px 28px",position:"relative",zIndex:1}}>
+      {/* MAIN TABS */}
+      <div style={{position:"relative",zIndex:9,borderBottom:"1px solid rgba(99,102,241,0.1)",background:"rgba(7,8,15,0.95)",backdropFilter:"blur(20px)"}}>
+        <div style={{maxWidth:1400,margin:"0 auto",padding:"0 28px",display:"flex",gap:4}}>
+          {[{id:"persos",icon:"⚔️",label:"Personnages"},{id:"craft",icon:"⚗️",label:"Craft Manager"}].map(t=>(
+            <button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"13px 22px",border:"none",borderBottom:mainTab===t.id?"2px solid #6366f1":"2px solid transparent",background:"transparent",color:mainTab===t.id?"#818cf8":"#475569",fontWeight:mainTab===t.id?700:500,cursor:"pointer",fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:7,transition:"all 0.2s"}}>
+              <span>{t.icon}</span><span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mainTab==="craft" && <CraftManager session={session} />}
+
+      <div style={{maxWidth:1400,margin:'0 auto',display:mainTab==="persos"?"block":"none",padding:'26px 28px',position:'relative',zIndex:1}}>
         {/* TABS */}
         <div style={{display:"flex",gap:8,marginBottom:22,flexWrap:"wrap"}}>
           {CATEGORIES.map(cat => {
