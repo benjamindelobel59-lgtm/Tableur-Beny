@@ -6,10 +6,18 @@ const supabase = createClient(
   "sb_publishable_V1jFd_pAkXmM6qfYyb83Ag_SdLEsxui"
 );
 
-const CLASSES = ["Iop","Cra","Feca","Xelor","Enutrof","Sacrieur","Sadida","Ecaflip","Eniripsa","Sram","Pandawa","Roublard","Zobal","Steamer","Eliotrope","Huppermage","Ouginak","Forgelance"];
+const CLASSES = ["Iop","Cra","Feca","Xelor","Enutrof","Sacrieur","Sadida","Ecaflip","Eniripsa","Sram","Pandawa","Roublard","Zobal","Steamer","Eliotrope","Huppermage","Ouginak","Forgelance","Osamodas"];
 const ETATS = ["Prêt","À stuff","À xp","Pano Sagesse","Mort","Check","Métier","Banque"];
 const ETAT_COLORS = {"Prêt":"#22c55e","À stuff":"#86efac","À xp":"#6366f1","Pano Sagesse":"#f5c842","Mort":"#ef4444","Check":"#06b6d4","Métier":"#f97316","Banque":"#94a3b8"};
-const CLASS_ICONS = {"Iop":"⚔️","Cra":"🏹","Feca":"🛡️","Xelor":"⏰","Enutrof":"💰","Sacrieur":"🩸","Sadida":"🌿","Ecaflip":"🎲","Eniripsa":"💊","Sram":"🗡️","Pandawa":"🐼","Roublard":"💣","Zobal":"🎭","Steamer":"⚙️","Eliotrope":"🌀","Huppermage":"✨","Ouginak":"🐺","Forgelance":"🔱"};
+const CLASS_ICONS = {
+  "Iop":"/classes/iop.png","Cra":"/classes/cra.png","Feca":"/classes/feca.png",
+  "Xelor":"/classes/xelor.png","Enutrof":"/classes/enutrof.png","Sacrieur":"/classes/sacrieur.png",
+  "Sadida":"/classes/sadida.png","Ecaflip":"/classes/ecaflip.png","Eniripsa":"/classes/eniripsa.png",
+  "Sram":"/classes/sram.png","Pandawa":"/classes/pandawa.png","Roublard":"/classes/roublard.png",
+  "Zobal":"/classes/zobal.png","Steamer":"/classes/steamer.png","Eliotrope":"/classes/eliotrope.png",
+  "Huppermage":"/classes/huppermage.png","Ouginak":"/classes/ouginak.png",
+  "Forgelance":"/classes/forgelance.png","Osamodas":"/classes/osamodas.png"
+};
 
 const CATEGORIES = [
   { id:"all",     label:"Tous",         icon:"⚔️", color:"#818cf8", etats:null },
@@ -301,7 +309,7 @@ export default function App() {
                   <div style={{padding:"16px"}}>
                     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:13}}>
                       <div style={{display:"flex",alignItems:"center",gap:11}}>
-                        <div style={{width:44,height:44,borderRadius:12,background:`${catColor}12`,border:`1px solid ${catColor}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{CLASS_ICONS[char.classe]||"⚔️"}</div>
+                        <div style={{width:44,height:44,borderRadius:12,background:`${catColor}12`,border:`1px solid ${catColor}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}><img src={CLASS_ICONS[char.classe]} style={{width:36,height:36,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"} /></div>
                         <div>
                           <div style={{fontWeight:700,fontSize:15,color:"#f1f5f9",lineHeight:1.2}}>{char.nom}</div>
                           <div style={{fontSize:12,color:"#475569",marginTop:3}}>{char.compte||<span style={{color:"#1e293b",fontStyle:"italic"}}>Sans compte</span>}</div>
