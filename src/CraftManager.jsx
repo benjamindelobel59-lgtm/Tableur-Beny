@@ -24,10 +24,13 @@ export default function CraftManager({ session }) {
   const [saveName, setSaveName] = useState("");
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
-  // clé = ingId, valeur = tableau d'ingrédients ou "none" si pas de recette
-  const [subRecipes, setSubRecipes] = useState({});
-  const [expandedIngredients, setExpandedIngredients] = useState({});
-  const [loadingSubRecipe, setLoadingSubRecipe] = useState({});
+  // Cache des sous-recettes : id → tableau d'ingrédients ou "none"
+  const [subRecipesCache, setSubRecipesCache] = useState({});
+  // IDs expanded dans la section Recette
+  const [expandedRecipe, setExpandedRecipe] = useState({});
+  // IDs expanded dans la section Ressources
+  const [expandedResources, setExpandedResources] = useState({});
+  const [loadingSub, setLoadingSub] = useState({});
   const searchTimeout = useRef(null);
 
   const showToast = (msg, type = "success") => {
@@ -59,7 +62,6 @@ export default function CraftManager({ session }) {
 
   const ingName = (ing) => typeof ing.name === "string" ? ing.name : (ing.name && ing.name.fr) || "";
 
-  // Calcul auto dès que craftList ou bankResources change
   const doCalculate = useCallback((list, bank) => {
     if (!list || list.length === 0) { setCalculated(null); return; }
     const totals = {};
@@ -82,9 +84,7 @@ export default function CraftManager({ session }) {
     setCalculated(result);
   }, []);
 
-  useEffect(() => {
-    doCalculate(craftList, bankResources);
-  }, [craftList, bankResources, doCalculate]);
+  useEffect(() => { doCalculate(craftList, bankResources); }, [craftList, bankResources, doCalculate]);
 
   const searchItems = useCallback(async (q) => {
     if (!q || q.length < 2) { setSearchResults([]); return; }
@@ -110,39 +110,29 @@ export default function CraftManager({ session }) {
   }, [search, searchItems]);
 
   const fetchIngredient = async (ingId, subtype) => {
-    const endpoint = subtype === "equipment" ? "equipment"
-      : subtype === "consumables" ? "consumables"
-      : "resources";
+    const endpoint = subtype === "equipment" ? "equipment" : subtype === "consumables" ? "consumables" : "resources";
     try {
       const r = await fetch(API + "/items/" + endpoint + "/" + ingId);
-      if (r.ok) {
-        const d = await r.json();
-        return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null };
-      }
+      if (r.ok) { const d = await r.json(); return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null }; }
     } catch (_) {}
     for (const ep of ["resources", "equipment", "consumables"]) {
       if (ep === endpoint) continue;
       try {
         const r = await fetch(API + "/items/" + ep + "/" + ingId);
-        if (r.ok) {
-          const d = await r.json();
-          return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null };
-        }
+        if (r.ok) { const d = await r.json(); return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null }; }
       } catch (_) {}
     }
     return { name: "", img: null };
   };
 
   const parseRecipeIngredients = async (recipe) => {
-    return Promise.all(
-      recipe.map(async function(e) {
-        const ingId = e.item_ankama_id;
-        const subtype = e.item_subtype || "resources";
-        if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "resources" };
-        const details = await fetchIngredient(ingId, subtype);
-        return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1, subtype };
-      })
-    );
+    return Promise.all(recipe.map(async function(e) {
+      const ingId = e.item_ankama_id;
+      const subtype = e.item_subtype || "resources";
+      if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "resources" };
+      const details = await fetchIngredient(ingId, subtype);
+      return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1, subtype };
+    }));
   };
 
   const fetchRecipe = async (item) => {
@@ -150,7 +140,7 @@ export default function CraftManager({ session }) {
     try {
       const id = item.ankama_id || item.id;
       const res = await fetch(API + "/items/equipment/" + id);
-      if (!res.ok) throw new Error("Item introuvable");
+      if (!res.ok) return null;
       const data = await res.json();
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         const ingredients = await parseRecipeIngredients(data.recipe);
@@ -161,43 +151,51 @@ export default function CraftManager({ session }) {
     finally { setLoadingRecipe(false); }
   };
 
-  // ✅ Tente de charger la sous-recette pour N'IMPORTE quel ingrédient
-  // Si pas de recette → stocke "none" pour ne plus retenter
-  const toggleSubRecipe = async (ing, parentQty) => {
-    const key = ing.id;
-
-    // Ferme si déjà ouvert
-    if (expandedIngredients[key]) {
-      setExpandedIngredients(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
-      return;
-    }
-
-    // Déjà chargé (même "none") → ouvre ou ignore
-    if (subRecipes[key] !== undefined) {
-      if (subRecipes[key] !== "none") {
-        setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
-      }
-      return;
-    }
-
-    setLoadingSubRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
+  // Charge la sous-recette d'un ingrédient dans le cache
+  const loadSubRecipe = async (ingId) => {
+    if (subRecipesCache[ingId] !== undefined) return subRecipesCache[ingId];
+    setLoadingSub(function(prev) { return Object.assign({}, prev, { [ingId]: true }); });
     try {
-      const res = await fetch(API + "/items/equipment/" + key);
+      const res = await fetch(API + "/items/equipment/" + ingId);
       if (!res.ok) {
-        // Pas un équipement craftable
-        setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: "none" }); });
-        return;
+        setSubRecipesCache(function(prev) { return Object.assign({}, prev, { [ingId]: "none" }); });
+        return "none";
       }
       const data = await res.json();
       if (!data.recipe || data.recipe.length === 0) {
-        setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: "none" }); });
-        return;
+        setSubRecipesCache(function(prev) { return Object.assign({}, prev, { [ingId]: "none" }); });
+        return "none";
       }
       const subIngredients = await parseRecipeIngredients(data.recipe);
-      setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: subIngredients }); });
-      setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
+      setSubRecipesCache(function(prev) { return Object.assign({}, prev, { [ingId]: subIngredients }); });
+      return subIngredients;
     } finally {
-      setLoadingSubRecipe(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
+      setLoadingSub(function(prev) { var n = Object.assign({}, prev); delete n[ingId]; return n; });
+    }
+  };
+
+  // Toggle dans la section Recette
+  const toggleRecipeExpand = async (ing, parentQty) => {
+    const key = ing.id;
+    if (expandedRecipe[key]) {
+      setExpandedRecipe(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
+      return;
+    }
+    const result = await loadSubRecipe(key);
+    if (result && result !== "none") {
+      setExpandedRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
+    }
+  };
+
+  // Toggle dans la section Ressources nécessaires
+  const toggleResourceExpand = async (ingId) => {
+    if (expandedResources[ingId]) {
+      setExpandedResources(function(prev) { var n = Object.assign({}, prev); delete n[ingId]; return n; });
+      return;
+    }
+    const result = await loadSubRecipe(ingId);
+    if (result && result !== "none") {
+      setExpandedResources(function(prev) { return Object.assign({}, prev, { [ingId]: true }); });
     }
   };
 
@@ -220,9 +218,7 @@ export default function CraftManager({ session }) {
       const itemWithRecipe = Object.assign({}, data, { recipe: { ingredients } });
       setCraftList(function(prev) { return prev.concat([{ item: itemWithRecipe, qty: 1 }]); });
       showToast(getName(data) + " ajouté ✓");
-    } finally {
-      setLoadingRecipe(false);
-    }
+    } finally { setLoadingRecipe(false); }
   };
 
   const addToCraftList = async (item) => {
@@ -269,8 +265,7 @@ export default function CraftManager({ session }) {
       items: JSON.stringify(craftList), bank: JSON.stringify(bankResources),
     }]);
     if (error) return showToast("Erreur de sauvegarde", "error");
-    setShowSaveModal(false);
-    setSaveName("");
+    setShowSaveModal(false); setSaveName("");
     await loadSavedCrafts();
     showToast("\"" + name + "\" sauvegardée ✓");
   };
@@ -279,8 +274,7 @@ export default function CraftManager({ session }) {
     try {
       setCraftList(JSON.parse(saved.items));
       setBankResources(JSON.parse(saved.bank || "{}"));
-      setSubRecipes({});
-      setExpandedIngredients({});
+      setSubRecipesCache({}); setExpandedRecipe({}); setExpandedResources({});
       showToast(saved.name + " chargée ✓");
     } catch (e) { showToast("Erreur lors du chargement", "error"); }
   };
@@ -296,21 +290,20 @@ export default function CraftManager({ session }) {
     if (!name) return;
     const { error } = await supabase.from("craft_lists").update({ name }).eq("id", id);
     if (error) return showToast("Erreur de renommage", "error");
-    setRenamingId(null);
-    setRenameValue("");
+    setRenamingId(null); setRenameValue("");
     await loadSavedCrafts();
     showToast("Renommée ✓");
   };
 
-  // ✅ Bouton ▼ sur TOUS les ingrédients — disparaît si pas de recette après fetch
-  const renderIngredient = (ing, i, parentQty, depth) => {
+  // ✅ Rendu ingrédient dans la RECETTE (panel gauche-droit)
+  const renderRecipeIngredient = (ing, i, parentQty, depth) => {
     if (depth === undefined) depth = 0;
-    const isExpanded = !!expandedIngredients[ing.id];
-    const isLoadingSub = !!loadingSubRecipe[ing.id];
-    const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === ing.id; });
-    const subData = subRecipes[ing.id]; // undefined = pas encore tenté, "none" = pas de recette, tableau = recette
+    const isExpanded = !!expandedRecipe[ing.id];
+    const isLoading = !!loadingSub[ing.id];
+    const subData = subRecipesCache[ing.id];
     const hasNoRecipe = subData === "none";
     const subIngs = Array.isArray(subData) ? subData : null;
+    const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === ing.id; });
     const totalQty = ing.quantity * (parentQty || 1);
 
     return (
@@ -320,25 +313,78 @@ export default function CraftManager({ session }) {
           <div style={{flex:1,fontSize:depth===0?13:12,color:depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
           <div style={{fontWeight:700,color:"#818cf8",fontSize:depth===0?14:12}}>x{totalQty}</div>
           <div style={{display:"flex",gap:4}}>
-            {/* Bouton Crafter : visible si déjà confirmé craftable */}
             {Array.isArray(subData) && (
               <button onClick={function(e){ e.stopPropagation(); addIngredientToCraft(ing); }}
                 style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 {isInList ? "✓" : "⚗️ Crafter"}
               </button>
             )}
-            {/* Bouton ▼ : visible tant qu'on n'a pas confirmé "none" */}
-            {!hasNoRecipe && (
-              <button onClick={function(e){ e.stopPropagation(); toggleSubRecipe(ing, parentQty); }}
-                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                {isLoadingSub ? "⏳" : isExpanded ? "▲" : "▼"}
+            {/* ✅ Bouton ▼ uniquement si subtype equipment OU pas encore testé */}
+            {!hasNoRecipe && ing.subtype !== "resources" && ing.subtype !== "consumables" && (
+              <button onClick={function(e){ e.stopPropagation(); toggleRecipeExpand(ing, parentQty); }}
+                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>
+                {isLoading ? "⏳" : isExpanded ? "▲" : "▼"}
               </button>
             )}
           </div>
         </div>
         {isExpanded && subIngs && (
+          <div>{subIngs.map(function(sub, si) { return renderRecipeIngredient(sub, si, totalQty, depth + 1); })}</div>
+        )}
+      </div>
+    );
+  };
+
+  // ✅ Rendu ingrédient dans RESSOURCES NÉCESSAIRES (cascade inline, pas d'ajout à la liste)
+  const renderResourceIngredient = (r, neededQty, depth) => {
+    if (depth === undefined) depth = 0;
+    const isExpanded = !!expandedResources[r.id];
+    const isLoading = !!loadingSub[r.id];
+    const subData = subRecipesCache[r.id];
+    const hasNoRecipe = subData === "none";
+    const subIngs = Array.isArray(subData) ? subData : null;
+    const missing = Math.max(0, neededQty - (bankResources[r.id] || 0));
+
+    return (
+      <div key={r.id + "-d" + depth}>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",marginLeft:depth*20,background:depth===0?(missing===0?"rgba(34,197,94,0.05)":"rgba(255,255,255,0.02)"):"rgba(99,102,241,0.04)",borderRadius:9,border:"1px solid "+(depth===0?(missing===0?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.04)"):"rgba(99,102,241,0.1)"),marginBottom:4,borderLeft:depth>0?"2px solid rgba(99,102,241,0.25)":"none"}}>
+          {r.img && <img src={r.img} style={{width:depth===0?28:24,height:depth===0?28:24,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
+          <div style={{flex:1,fontSize:depth===0?13:12,color:depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(r)}</div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {/* ✅ Bouton ▼ UNIQUEMENT pour items craftables (equipment), jamais pour resources/consumables */}
+            {depth === 0 && !hasNoRecipe && r.subtype !== "resources" && r.subtype !== "consumables" && (
+              <button onClick={function(){ toggleResourceExpand(r.id); }}
+                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>
+                {isLoading ? "⏳" : isExpanded ? "▲" : "▼"}
+              </button>
+            )}
+            {depth === 0 && (
+              <input type="number" min={0} value={bankResources[r.id]||""} placeholder="Banque"
+                onChange={function(e){
+                  const val = parseInt(e.target.value) || 0;
+                  setBankResources(function(prev){ return Object.assign({}, prev, { [r.id]: val }); });
+                }}
+                style={{width:64,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,outline:"none",fontFamily:"inherit",textAlign:"center"}} />
+            )}
+            <div style={{minWidth:depth===0?60:40,textAlign:"right"}}>
+              {depth === 0 ? (
+                <>
+                  <span style={{fontWeight:700,color:missing===0?"#22c55e":"#f87171",fontSize:14}}>{missing===0?"✓":"-"+missing}</span>
+                  <span style={{fontSize:11,color:"#475569",marginLeft:4}}>/ {neededQty}</span>
+                </>
+              ) : (
+                <span style={{fontWeight:600,color:"#818cf8",fontSize:12}}>x{neededQty}</span>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* ✅ Cascade inline dans Ressources */}
+        {isExpanded && subIngs && (
           <div>
-            {subIngs.map(function(sub, si) { return renderIngredient(sub, si, totalQty, depth + 1); })}
+            {subIngs.map(function(sub) {
+              const subNeeded = sub.quantity * neededQty;
+              return renderResourceIngredient(sub, subNeeded, depth + 1);
+            })}
           </div>
         )}
       </div>
@@ -412,7 +458,7 @@ export default function CraftManager({ session }) {
                     const id = c.item.ankama_id || c.item.id;
                     const isActive = activeItem && (activeItem.ankama_id || activeItem.id) === id;
                     return (
-                      <div key={id} onClick={function(){setActiveItem(c.item);setExpandedIngredients({});setSubRecipes({});}}
+                      <div key={id} onClick={function(){setActiveItem(c.item);setExpandedRecipe({});}}
                         style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:isActive?"rgba(99,102,241,0.1)":"rgba(255,255,255,0.02)",border:"1px solid "+(isActive?"rgba(99,102,241,0.3)":"rgba(255,255,255,0.05)"),borderRadius:10,cursor:"pointer"}}>
                         {getImg(c.item) && <img src={getImg(c.item)} style={{width:36,height:36,objectFit:"contain",borderRadius:8,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1}}>
@@ -452,8 +498,7 @@ export default function CraftManager({ session }) {
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
                     {activeItem.recipe.ingredients.map(function(ing, i) {
                       const craftEntry = craftList.find(function(c){ return (c.item.ankama_id || c.item.id) === (activeItem.ankama_id || activeItem.id); });
-                      const qty = craftEntry ? craftEntry.qty : 1;
-                      return renderIngredient(ing, i, qty, 0);
+                      return renderRecipeIngredient(ing, i, craftEntry ? craftEntry.qty : 1, 0);
                     })}
                   </div>
                 ) : <div style={{color:"#475569",fontSize:13,textAlign:"center",padding:"10px 0"}}>Aucune recette disponible</div>}
@@ -463,51 +508,10 @@ export default function CraftManager({ session }) {
             {calculated && calculated.length > 0 && (
               <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:16,padding:20,flex:1}}>
                 <div style={{fontSize:12,color:"#6366f1",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700}}>🧮 Ressources nécessaires ({calculated.length})</div>
-                <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Indique tes ressources en banque — mise à jour automatique</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:400,overflowY:"auto"}}>
-                  {calculated.map(function(r,i) {
-                    const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === r.id; });
-                    const subData = subRecipes[r.id];
-                    const hasNoRecipe = subData === "none";
-                    const isExpanded = !!expandedIngredients[r.id];
-                    const isLoadingSub = !!loadingSubRecipe[r.id];
-                    return (
-                      <div key={i}>
-                        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:r.missing===0?"rgba(34,197,94,0.05)":"rgba(255,255,255,0.02)",borderRadius:9,border:"1px solid "+(r.missing===0?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.04)")}}>
-                          {r.img && <img src={r.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
-                          <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(r)}</div>
-                          <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            {Array.isArray(subData) && (
-                              <button onClick={function(){ addIngredientToCraft(r); }}
-                                style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                                {isInList ? "✓" : "⚗️ Crafter"}
-                              </button>
-                            )}
-                            {!hasNoRecipe && (
-                              <button onClick={function(){ toggleSubRecipe(r, 1); }}
-                                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>
-                                {isLoadingSub ? "⏳" : isExpanded ? "▲" : "▼"}
-                              </button>
-                            )}
-                            <input type="number" min={0} value={bankResources[r.id]||""} placeholder="Banque"
-                              onChange={function(e){
-                                const val = parseInt(e.target.value) || 0;
-                                setBankResources(function(prev){ return Object.assign({}, prev, { [r.id]: val }); });
-                              }}
-                              style={{width:64,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,outline:"none",fontFamily:"inherit",textAlign:"center"}} />
-                            <div style={{minWidth:60,textAlign:"right"}}>
-                              <span style={{fontWeight:700,color:r.missing===0?"#22c55e":"#f87171",fontSize:14}}>{r.missing===0?"✓":"-"+r.missing}</span>
-                              <span style={{fontSize:11,color:"#475569",marginLeft:4}}>/ {r.needed}</span>
-                            </div>
-                          </div>
-                        </div>
-                        {isExpanded && Array.isArray(subData) && (
-                          <div style={{marginBottom:4}}>
-                            {subData.map(function(sub, si) { return renderIngredient(sub, si, r.needed, 1); })}
-                          </div>
-                        )}
-                      </div>
-                    );
+                <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Items craftables : clique ▼ pour voir leurs ingrédients en cascade</div>
+                <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:500,overflowY:"auto"}}>
+                  {calculated.map(function(r, i) {
+                    return renderResourceIngredient(r, r.needed, 0);
                   })}
                 </div>
               </div>
