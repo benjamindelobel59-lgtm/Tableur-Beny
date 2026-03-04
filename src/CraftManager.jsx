@@ -126,28 +126,20 @@ export default function CraftManager({ session }) {
     finally { setLoadingRecipe(false); }
   };
 
-  // Charge la sous-recette d'un ingrédient et l'affiche en cascade
   const toggleSubRecipe = async (ing, parentQty) => {
     const key = ing.id;
-
-    // Si déjà ouvert, on ferme
     if (expandedIngredients[key]) {
       setExpandedIngredients(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
       return;
     }
-
-    // Si déjà chargé, on ouvre juste
     if (subRecipes[key]) {
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
       return;
     }
-
-    // Sinon on fetch
     setLoadingSubRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     try {
       const fullItem = craftableIds[key];
       if (!fullItem || !fullItem.recipe) return;
-
       const subIngredients = await Promise.all(
         fullItem.recipe.map(async function(e) {
           const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
@@ -159,11 +151,49 @@ export default function CraftManager({ session }) {
           return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
         })
       );
-
       setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: subIngredients }); });
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     } finally {
       setLoadingSubRecipe(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
+    }
+  };
+
+  // Ajoute un ingrédient craftable directement à la file
+  const addIngredientToCraft = async (ing) => {
+    const existing = craftList.find(function(c) { return (c.item.ankama_id || c.item.id) === ing.id; });
+    if (existing) {
+      setCraftList(craftList.map(function(c) {
+        return (c.item.ankama_id || c.item.id) === ing.id ? Object.assign({}, c, { qty: c.qty + 1 }) : c;
+      }));
+      showToast("+1 " + ingName(ing) + " dans la liste");
+      return;
+    }
+    let fullItem = craftableIds[ing.id] || null;
+    if (!fullItem) {
+      const details = await fetchIngredient(ing.id);
+      fullItem = details.fullItem;
+    }
+    if (!fullItem || !fullItem.recipe || fullItem.recipe.length === 0) {
+      return showToast("Pas de recette pour " + ingName(ing), "error");
+    }
+    setLoadingRecipe(true);
+    try {
+      const ingredients = await Promise.all(
+        fullItem.recipe.map(async function(e) {
+          const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
+          if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
+          const details = await fetchIngredient(ingId);
+          if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
+            setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
+          }
+          return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
+        })
+      );
+      const itemWithRecipe = Object.assign({}, fullItem, { recipe: { ingredients } });
+      setCraftList(function(prev) { return prev.concat([{ item: itemWithRecipe, qty: 1 }]); });
+      showToast(getName(fullItem) + " ajouté ✓");
+    } finally {
+      setLoadingRecipe(false);
     }
   };
 
@@ -269,38 +299,44 @@ export default function CraftManager({ session }) {
     showToast("Renommée ✓");
   };
 
-  // Rendu d'un ingrédient avec sa cascade éventuelle
   const renderIngredient = (ing, i, parentQty, depth) => {
     if (depth === undefined) depth = 0;
     const isCraftable = !!craftableIds[ing.id];
     const isExpanded = !!expandedIngredients[ing.id];
     const isLoadingSub = !!loadingSubRecipe[ing.id];
+    const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === ing.id; });
     const subIngs = subRecipes[ing.id];
     const totalQty = ing.quantity * (parentQty || 1);
 
     return (
-      <div key={ing.id + "-" + i} style={{marginLeft: depth * 20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:depth===0?"rgba(255,255,255,0.02)":"rgba(99,102,241,0.04)",borderRadius:9,border:"1px solid "+(depth===0?"rgba(255,255,255,0.04)":"rgba(99,102,241,0.1)"),marginBottom:4}}>
-          {depth > 0 && <div style={{color:"#6366f1",fontSize:11,marginRight:2}}>└</div>}
+      <div key={ing.id + "-" + i + "-" + depth} style={{marginLeft: depth * 20}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:depth===0?"rgba(255,255,255,0.02)":"rgba(99,102,241,0.04)",borderRadius:9,border:"1px solid "+(depth===0?"rgba(255,255,255,0.04)":"rgba(99,102,241,0.1)"),marginBottom:4}}>
+          {depth > 0 && <div style={{color:"#6366f1",fontSize:11}}>└</div>}
           {ing.img && <img src={ing.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6}} alt="" onError={function(e){e.target.style.display="none";}} />}
-          <div style={{flex:1,fontSize:13,color: depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
-          <div style={{fontWeight:700,color:"#818cf8",fontSize:14,marginRight:4}}>x{totalQty}</div>
+          <div style={{flex:1,fontSize:13,color:depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
+          <div style={{fontWeight:700,color:"#818cf8",fontSize:14}}>x{totalQty}</div>
           {isCraftable && (
-            <button
-              onClick={function(){ toggleSubRecipe(ing, parentQty); }}
-              title={isExpanded ? "Réduire" : "Voir les ressources nécessaires"}
-              style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:7,padding:"3px 8px",color:"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}}>
-              {isLoadingSub ? "⏳" : isExpanded ? "▲ Réduire" : "⚗️ Détails"}
-            </button>
+            <div style={{display:"flex",gap:4}}>
+              {/* ✅ Bouton Crafter : ajoute à la file */}
+              <button
+                onClick={function(e){ e.stopPropagation(); addIngredientToCraft(ing); }}
+                title="Ajouter à la file de craft"
+                style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                {isInList ? "✓" : "⚗️ Crafter"}
+              </button>
+              {/* ✅ Bouton Détails : affiche la cascade */}
+              <button
+                onClick={function(e){ e.stopPropagation(); toggleSubRecipe(ing, parentQty); }}
+                title={isExpanded ? "Réduire" : "Voir les sous-ressources"}
+                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                {isLoadingSub ? "⏳" : isExpanded ? "▲" : "▼"}
+              </button>
+            </div>
           )}
         </div>
-
-        {/* Sous-ingrédients en cascade */}
         {isExpanded && subIngs && (
           <div style={{marginBottom:4}}>
-            {subIngs.map(function(sub, si) {
-              return renderIngredient(sub, si, totalQty, depth + 1);
-            })}
+            {subIngs.map(function(sub, si) { return renderIngredient(sub, si, totalQty, depth + 1); })}
           </div>
         )}
       </div>
@@ -374,7 +410,7 @@ export default function CraftManager({ session }) {
                     const id = c.item.ankama_id || c.item.id;
                     const isActive = activeItem && (activeItem.ankama_id || activeItem.id) === id;
                     return (
-                      <div key={id} onClick={function(){setActiveItem(c.item); setExpandedIngredients({}); setSubRecipes({});}}
+                      <div key={id} onClick={function(){setActiveItem(c.item);setExpandedIngredients({});setSubRecipes({});}}
                         style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:isActive?"rgba(99,102,241,0.1)":"rgba(255,255,255,0.02)",border:"1px solid "+(isActive?"rgba(99,102,241,0.3)":"rgba(255,255,255,0.05)"),borderRadius:10,cursor:"pointer"}}>
                         {getImg(c.item) && <img src={getImg(c.item)} style={{width:36,height:36,objectFit:"contain",borderRadius:8,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1}}>
@@ -431,11 +467,18 @@ export default function CraftManager({ session }) {
                 <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Indique tes ressources en banque pour voir ce qu'il manque</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:400,overflowY:"auto"}}>
                   {calculated.map(function(r,i) {
+                    const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === r.id; });
                     return (
                       <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:r.missing===0?"rgba(34,197,94,0.05)":"rgba(255,255,255,0.02)",borderRadius:9,border:"1px solid "+(r.missing===0?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.04)")}}>
                         {r.img && <img src={r.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(r)}</div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          {r.isCraftable && (
+                            <button onClick={function(){ addIngredientToCraft(r); }}
+                              style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                              {isInList ? "✓" : "⚗️ Crafter"}
+                            </button>
+                          )}
                           <input type="number" min={0} value={bankResources[r.id]||""} placeholder="Banque"
                             onChange={function(e){setBankResources(function(prev){var next=Object.assign({},prev);next[r.id]=parseInt(e.target.value)||0;return next;});}}
                             style={{width:64,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,outline:"none",fontFamily:"inherit",textAlign:"center"}} />
