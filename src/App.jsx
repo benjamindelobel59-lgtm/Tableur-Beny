@@ -57,102 +57,22 @@ const WEBHOOK_EVENTS = [
   {id:"levelup",   label:"Level up",             icon:"⭐", color:"#fbbf24",   desc:"Quand le level d'un perso augmente"},
 ];
 
-// ─── BUILD DISCORD EMBED ──────────────────────────────────────
+// ─── BUILD DISCORD EMBED (minimaliste) ───────────────────────
 const buildEmbed = (type, char, extra={}) => {
   const surcat = char.surcat||"PVM";
-  const surcatIcon = surcat==="PVP"?"🏆":"🐉";
-  const etatColor = ETAT_COLORS[char.etat]||"#f59e0b";
-  const hexColor = parseInt(etatColor.replace("#",""),16);
-
-  const footer = { text:"Tableur By Beny • Serveur Héroïque", icon_url:"https://i.imgur.com/AfFp7pu.png" };
+  const si = surcat==="PVP"?"🏆":"🐉";
+  const footer = { text:"Tableur By Beny" };
   const ts = new Date().toISOString();
 
-  if (type==="mort") return {
-    embeds:[{
-      title:"💀 Personnage mort !",
-      description:`**${char.nom}** vient de mourir sur le serveur héroïque.\n> Pense à le reprendre ! 💪`,
-      color:0xf87171,
-      fields:[
-        {name:"👤 Personnage", value:char.nom, inline:true},
-        {name:"📋 Compte",     value:char.compte||"—", inline:true},
-        {name:"⚔️ Classe",    value:char.classe, inline:true},
-        {name:"📊 Level",      value:`${char.level} / ${char.level_max}`, inline:true},
-        {name:"📁 Dossier",    value:`${surcatIcon} ${surcat}`, inline:true},
-        {name:"🌍 Zone",       value:char.frigost||"Continent", inline:true},
-      ],
-      footer, timestamp:ts,
-    }]
-  };
+  const embed = (color, description) => ({
+    embeds:[{ description, color, footer, timestamp:ts }]
+  });
 
-  if (type==="etat") return {
-    embeds:[{
-      title:"🔄 Changement d'état",
-      description:`**${char.nom}** est maintenant en état **${extra.newEtat}**`,
-      color:parseInt((ETAT_COLORS[extra.newEtat]||"#818cf8").replace("#",""),16),
-      fields:[
-        {name:"👤 Personnage", value:char.nom, inline:true},
-        {name:"📋 Compte",     value:char.compte||"—", inline:true},
-        {name:"⚔️ Classe",    value:char.classe, inline:true},
-        {name:"📊 Level",      value:`${char.level}`, inline:true},
-        {name:"📁 Dossier",    value:`${surcatIcon} ${surcat}`, inline:true},
-        {name:"🔄 Ancien état",value:extra.oldEtat||"—", inline:true},
-        {name:"✅ Nouvel état", value:extra.newEtat, inline:true},
-      ],
-      footer, timestamp:ts,
-    }]
-  };
-
-  if (type==="surcat") return {
-    embeds:[{
-      title:"⚔️ Changement de dossier",
-      description:`**${char.nom}** a changé de dossier : **${extra.oldSurcat}** → **${extra.newSurcat}**`,
-      color:extra.newSurcat==="PVP"?0xf43f5e:0x34d399,
-      fields:[
-        {name:"👤 Personnage", value:char.nom, inline:true},
-        {name:"📋 Compte",     value:char.compte||"—", inline:true},
-        {name:"⚔️ Classe",    value:char.classe, inline:true},
-        {name:"📊 Level",      value:`${char.level}`, inline:true},
-        {name:"🔄 Avant",      value:`${extra.oldSurcat==="PVP"?"🏆":"🐉"} ${extra.oldSurcat}`, inline:true},
-        {name:"✅ Maintenant", value:`${extra.newSurcat==="PVP"?"🏆":"🐉"} ${extra.newSurcat}`, inline:true},
-      ],
-      footer, timestamp:ts,
-    }]
-  };
-
-  if (type==="add") return {
-    embeds:[{
-      title:"✨ Nouveau personnage ajouté !",
-      description:`**${char.nom}** rejoint le tableur de Beny !`,
-      color:0x34d399,
-      fields:[
-        {name:"👤 Personnage", value:char.nom, inline:true},
-        {name:"📋 Compte",     value:char.compte||"—", inline:true},
-        {name:"⚔️ Classe",    value:char.classe, inline:true},
-        {name:"📊 Level",      value:`${char.level} / ${char.level_max}`, inline:true},
-        {name:"📁 Dossier",    value:`${surcatIcon} ${surcat}`, inline:true},
-        {name:"🌍 Zone",       value:char.frigost||"Continent", inline:true},
-        {name:"🗂️ État",       value:char.etat, inline:true},
-      ],
-      footer, timestamp:ts,
-    }]
-  };
-
-  if (type==="levelup") return {
-    embeds:[{
-      title:"⭐ Level up !",
-      description:`**${char.nom}** a gagné un niveau !`,
-      color:0xfbbf24,
-      fields:[
-        {name:"👤 Personnage",  value:char.nom, inline:true},
-        {name:"📋 Compte",      value:char.compte||"—", inline:true},
-        {name:"⚔️ Classe",     value:char.classe, inline:true},
-        {name:"📊 Ancien level",value:`${extra.oldLevel}`, inline:true},
-        {name:"⭐ Nouveau",     value:`${extra.newLevel}`, inline:true},
-        {name:"📁 Dossier",     value:`${surcatIcon} ${surcat}`, inline:true},
-      ],
-      footer, timestamp:ts,
-    }]
-  };
+  if (type==="mort")    return embed(0xf87171, `💀 **${char.nom}** (${char.classe} • ${si} ${surcat}) est mort — Level ${char.level} — ⚠️ Pense à le reprendre !`);
+  if (type==="etat")    return embed(parseInt((ETAT_COLORS[extra.newEtat]||"#818cf8").replace("#",""),16), `🔄 **${char.nom}** (${char.classe} • ${si} ${surcat}) : ${extra.oldEtat} → **${extra.newEtat}**`);
+  if (type==="surcat")  return embed(extra.newSurcat==="PVP"?0xf43f5e:0x34d399, `⚔️ **${char.nom}** (${char.classe}) a changé de dossier : ${extra.oldSurcat==="PVP"?"🏆":"🐉"} ${extra.oldSurcat} → ${extra.newSurcat==="PVP"?"🏆":"🐉"} **${extra.newSurcat}**`);
+  if (type==="add")     return embed(0x34d399, `✨ **${char.nom}** (${char.classe} • ${si} ${surcat}) a été ajouté — Level ${char.level} — ${char.etat}`);
+  if (type==="levelup") return embed(0xfbbf24, `⭐ **${char.nom}** (${char.classe} • ${si} ${surcat}) a level up : ${extra.oldLevel} → **${extra.newLevel}**`);
 
   return null;
 };
