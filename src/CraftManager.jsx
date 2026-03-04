@@ -24,7 +24,6 @@ export default function CraftManager({ session }) {
   const [saveName, setSaveName] = useState("");
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
-  const [craftableIds, setCraftableIds] = useState({});
   const [expandedIngredients, setExpandedIngredients] = useState({});
   const [subRecipes, setSubRecipes] = useState({});
   const [loadingSubRecipe, setLoadingSubRecipe] = useState({});
@@ -82,25 +81,23 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  // ✅ CORRIGÉ : utilise item_subtype pour appeler le bon endpoint directement
+  // Fetch un ingrédient selon son subtype
   const fetchIngredient = async (ingId, subtype) => {
-    // Détermine l'ordre des URLs selon le subtype
-    let urls = [];
-    if (subtype === "equipment") {
-      urls = [API + "/items/equipment/" + ingId];
-    } else if (subtype === "resources") {
-      urls = [API + "/items/resources/" + ingId];
-    } else {
-      urls = [
-        API + "/items/resources/" + ingId,
-        API + "/items/equipment/" + ingId,
-        API + "/items/consumables/" + ingId,
-      ];
-    }
-
-    for (const url of urls) {
+    const endpoint = subtype === "equipment" ? "equipment"
+      : subtype === "consumables" ? "consumables"
+      : "resources";
+    try {
+      const r = await fetch(API + "/items/" + endpoint + "/" + ingId);
+      if (r.ok) {
+        const d = await r.json();
+        return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
+      }
+    } catch (_) {}
+    // fallback
+    for (const ep of ["resources", "equipment", "consumables"]) {
+      if (ep === endpoint) continue;
       try {
-        const r = await fetch(url);
+        const r = await fetch(API + "/items/" + ep + "/" + ingId);
         if (r.ok) {
           const d = await r.json();
           return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
@@ -110,17 +107,14 @@ export default function CraftManager({ session }) {
     return { name: "", img: null, fullItem: null };
   };
 
-  const parseRecipeIngredients = async (recipe, setCraftable) => {
+  // Parse une liste de recette brute → tableau d'ingrédients enrichis
+  const parseRecipeIngredients = async (recipe) => {
     return Promise.all(
       recipe.map(async function(e) {
         const ingId = e.item_ankama_id;
-        const subtype = e.item_subtype || "";
+        const subtype = e.item_subtype || "resources";
         if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "" };
         const details = await fetchIngredient(ingId, subtype);
-        // ✅ Si subtype === "equipment", c'est forcément craftable
-        if (subtype === "equipment" && details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
-          if (setCraftable) setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
-        }
         return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1, subtype };
       })
     );
@@ -134,7 +128,7 @@ export default function CraftManager({ session }) {
       if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
-        const ingredients = await parseRecipeIngredients(data.recipe, true);
+        const ingredients = await parseRecipeIngredients(data.recipe);
         return { ingredients };
       }
       return null;
@@ -142,21 +136,27 @@ export default function CraftManager({ session }) {
     finally { setLoadingRecipe(false); }
   };
 
+  // ✅ Clic sur ▼ : fetch la recette de l'ingrédient directement
   const toggleSubRecipe = async (ing, parentQty) => {
     const key = ing.id;
+    // Ferme si déjà ouvert
     if (expandedIngredients[key]) {
       setExpandedIngredients(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
       return;
     }
+    // Ouvre sans refetch si déjà chargé
     if (subRecipes[key]) {
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
       return;
     }
     setLoadingSubRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     try {
-      const fullItem = craftableIds[key];
-      if (!fullItem || !fullItem.recipe) return;
-      const subIngredients = await parseRecipeIngredients(fullItem.recipe, true);
+      // Fetch directement /items/equipment/{id} pour avoir la recette
+      const res = await fetch(API + "/items/equipment/" + key);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.recipe || data.recipe.length === 0) return;
+      const subIngredients = await parseRecipeIngredients(data.recipe);
       setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: subIngredients }); });
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     } finally {
@@ -164,6 +164,7 @@ export default function CraftManager({ session }) {
     }
   };
 
+  // Ajoute un ingrédient craftable à la file
   const addIngredientToCraft = async (ing) => {
     const existing = craftList.find(function(c) { return (c.item.ankama_id || c.item.id) === ing.id; });
     if (existing) {
@@ -173,20 +174,16 @@ export default function CraftManager({ session }) {
       showToast("+1 " + ingName(ing) + " dans la liste");
       return;
     }
-    let fullItem = craftableIds[ing.id] || null;
-    if (!fullItem) {
-      const details = await fetchIngredient(ing.id, ing.subtype || "equipment");
-      fullItem = details.fullItem;
-    }
-    if (!fullItem || !fullItem.recipe || fullItem.recipe.length === 0) {
-      return showToast("Pas de recette pour " + ingName(ing), "error");
-    }
     setLoadingRecipe(true);
     try {
-      const ingredients = await parseRecipeIngredients(fullItem.recipe, true);
-      const itemWithRecipe = Object.assign({}, fullItem, { recipe: { ingredients } });
+      const res = await fetch(API + "/items/equipment/" + ing.id);
+      if (!res.ok) return showToast("Item introuvable", "error");
+      const data = await res.json();
+      if (!data.recipe || data.recipe.length === 0) return showToast("Pas de recette pour " + ingName(ing), "error");
+      const ingredients = await parseRecipeIngredients(data.recipe);
+      const itemWithRecipe = Object.assign({}, data, { recipe: { ingredients } });
       setCraftList(function(prev) { return prev.concat([{ item: itemWithRecipe, qty: 1 }]); });
-      showToast(getName(fullItem) + " ajouté ✓");
+      showToast(getName(data) + " ajouté ✓");
     } finally {
       setLoadingRecipe(false);
     }
@@ -243,7 +240,6 @@ export default function CraftManager({ session }) {
       return Object.assign({}, r, {
         inBank: bankResources[r.id] || 0,
         missing: Math.max(0, r.needed - (bankResources[r.id] || 0)),
-        isCraftable: !!craftableIds[r.id],
       });
     });
     setCalculated(result);
@@ -294,9 +290,10 @@ export default function CraftManager({ session }) {
     showToast("Renommée ✓");
   };
 
+  // ✅ isCraftable = simplement vérifier que subtype === "equipment"
   const renderIngredient = (ing, i, parentQty, depth) => {
     if (depth === undefined) depth = 0;
-    const isCraftable = !!craftableIds[ing.id];
+    const isCraftable = ing.subtype === "equipment";
     const isExpanded = !!expandedIngredients[ing.id];
     const isLoadingSub = !!loadingSubRecipe[ing.id];
     const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === ing.id; });
@@ -461,7 +458,7 @@ export default function CraftManager({ session }) {
                         {r.img && <img src={r.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(r)}</div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          {r.isCraftable && (
+                          {r.subtype === "equipment" && (
                             <button onClick={function(){ addIngredientToCraft(r); }}
                               style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                               {isInList ? "✓" : "⚗️ Crafter"}
