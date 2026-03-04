@@ -25,6 +25,9 @@ export default function CraftManager({ session }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [craftableIds, setCraftableIds] = useState({});
+  const [expandedIngredients, setExpandedIngredients] = useState({});
+  const [subRecipes, setSubRecipes] = useState({});
+  const [loadingSubRecipe, setLoadingSubRecipe] = useState({});
   const searchTimeout = useRef(null);
 
   const showToast = (msg, type = "success") => {
@@ -54,6 +57,8 @@ export default function CraftManager({ session }) {
     return null;
   };
 
+  const ingName = (ing) => typeof ing.name === "string" ? ing.name : (ing.name && ing.name.fr) || "";
+
   const searchItems = useCallback(async (q) => {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
@@ -67,10 +72,7 @@ export default function CraftManager({ session }) {
       if (!res.ok) throw new Error(res.status);
       const data = await res.json();
       setSearchResults(Array.isArray(data) ? data : (data.items || data.data || []));
-    } catch (e) {
-      console.error("Search error:", e);
-      setSearchResults([]);
-    }
+    } catch (e) { setSearchResults([]); }
     setSearching(false);
   }, [filterLevel]);
 
@@ -91,11 +93,7 @@ export default function CraftManager({ session }) {
         const r = await fetch(url);
         if (r.ok) {
           const d = await r.json();
-          return {
-            name: d.name || "",
-            img: (d.image_urls && d.image_urls.icon) || null,
-            fullItem: d,
-          };
+          return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
         }
       } catch (_) {}
     }
@@ -109,77 +107,50 @@ export default function CraftManager({ session }) {
       const res = await fetch(API + "/items/equipment/" + id);
       if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
-
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         const ingredients = await Promise.all(
           data.recipe.map(async function(e) {
-            const ingId =
-              e.item_ankama_id ||
-              e.ankama_id ||
-              e.id ||
-              (e.item && (e.item.ankama_id || e.item.id));
-
+            const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
             if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
-
             const details = await fetchIngredient(ingId);
-
-            // Vérifie si cet ingrédient est lui-même craftable (équipement avec recette)
             if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
               setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
             }
-
-            return {
-              id: ingId,
-              name: details.name,
-              img: details.img,
-              quantity: e.quantity || 1,
-            };
+            return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
           })
         );
         return { ingredients };
       }
       return null;
-    } catch (e) {
-      console.error("fetchRecipe error:", e);
-      return null;
-    } finally {
-      setLoadingRecipe(false);
-    }
+    } catch (e) { return null; }
+    finally { setLoadingRecipe(false); }
   };
 
-  // Ajoute un ingrédient directement à la file de craft
-  const addIngredientToCraft = async (ing) => {
-    const existing = craftList.find(function(c) { return (c.item.ankama_id || c.item.id) === ing.id; });
-    if (existing) {
-      showToast("+1 " + (typeof ing.name === "string" ? ing.name : ing.name?.fr || "") + " dans la liste");
-      setCraftList(craftList.map(function(c) {
-        return (c.item.ankama_id || c.item.id) === ing.id ? Object.assign({}, c, { qty: c.qty + 1 }) : c;
-      }));
+  // Charge la sous-recette d'un ingrédient et l'affiche en cascade
+  const toggleSubRecipe = async (ing, parentQty) => {
+    const key = ing.id;
+
+    // Si déjà ouvert, on ferme
+    if (expandedIngredients[key]) {
+      setExpandedIngredients(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
       return;
     }
 
-    // Récupère l'item complet depuis craftableIds ou le fetch
-    let fullItem = craftableIds[ing.id] || null;
-    if (!fullItem) {
-      const details = await fetchIngredient(ing.id);
-      fullItem = details.fullItem;
-    }
-    if (!fullItem) return showToast("Item introuvable", "error");
-
-    // Construit la recette depuis fullItem.recipe
-    if (!fullItem.recipe || fullItem.recipe.length === 0) {
-      return showToast("Pas de recette pour " + getName(fullItem), "error");
+    // Si déjà chargé, on ouvre juste
+    if (subRecipes[key]) {
+      setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
+      return;
     }
 
-    setLoadingRecipe(true);
+    // Sinon on fetch
+    setLoadingSubRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     try {
-      const ingredients = await Promise.all(
+      const fullItem = craftableIds[key];
+      if (!fullItem || !fullItem.recipe) return;
+
+      const subIngredients = await Promise.all(
         fullItem.recipe.map(async function(e) {
-          const ingId =
-            e.item_ankama_id ||
-            e.ankama_id ||
-            e.id ||
-            (e.item && (e.item.ankama_id || e.item.id));
+          const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
           if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
           const details = await fetchIngredient(ingId);
           if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
@@ -188,11 +159,11 @@ export default function CraftManager({ session }) {
           return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
         })
       );
-      const itemWithRecipe = Object.assign({}, fullItem, { recipe: { ingredients } });
-      setCraftList(function(prev) { return prev.concat([{ item: itemWithRecipe, qty: 1 }]); });
-      showToast(getName(fullItem) + " ajouté ✓");
+
+      setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: subIngredients }); });
+      setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     } finally {
-      setLoadingRecipe(false);
+      setLoadingSubRecipe(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
     }
   };
 
@@ -298,9 +269,45 @@ export default function CraftManager({ session }) {
     showToast("Renommée ✓");
   };
 
-  const fi = { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
+  // Rendu d'un ingrédient avec sa cascade éventuelle
+  const renderIngredient = (ing, i, parentQty, depth) => {
+    if (depth === undefined) depth = 0;
+    const isCraftable = !!craftableIds[ing.id];
+    const isExpanded = !!expandedIngredients[ing.id];
+    const isLoadingSub = !!loadingSubRecipe[ing.id];
+    const subIngs = subRecipes[ing.id];
+    const totalQty = ing.quantity * (parentQty || 1);
 
-  const ingName = (ing) => typeof ing.name === "string" ? ing.name : (ing.name && ing.name.fr) || "";
+    return (
+      <div key={ing.id + "-" + i} style={{marginLeft: depth * 20}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:depth===0?"rgba(255,255,255,0.02)":"rgba(99,102,241,0.04)",borderRadius:9,border:"1px solid "+(depth===0?"rgba(255,255,255,0.04)":"rgba(99,102,241,0.1)"),marginBottom:4}}>
+          {depth > 0 && <div style={{color:"#6366f1",fontSize:11,marginRight:2}}>└</div>}
+          {ing.img && <img src={ing.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6}} alt="" onError={function(e){e.target.style.display="none";}} />}
+          <div style={{flex:1,fontSize:13,color: depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
+          <div style={{fontWeight:700,color:"#818cf8",fontSize:14,marginRight:4}}>x{totalQty}</div>
+          {isCraftable && (
+            <button
+              onClick={function(){ toggleSubRecipe(ing, parentQty); }}
+              title={isExpanded ? "Réduire" : "Voir les ressources nécessaires"}
+              style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:7,padding:"3px 8px",color:"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+              {isLoadingSub ? "⏳" : isExpanded ? "▲ Réduire" : "⚗️ Détails"}
+            </button>
+          )}
+        </div>
+
+        {/* Sous-ingrédients en cascade */}
+        {isExpanded && subIngs && (
+          <div style={{marginBottom:4}}>
+            {subIngs.map(function(sub, si) {
+              return renderIngredient(sub, si, totalQty, depth + 1);
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const fi = { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
 
   return (
     <div style={{position:"relative",zIndex:1}}>
@@ -367,7 +374,7 @@ export default function CraftManager({ session }) {
                     const id = c.item.ankama_id || c.item.id;
                     const isActive = activeItem && (activeItem.ankama_id || activeItem.id) === id;
                     return (
-                      <div key={id} onClick={function(){setActiveItem(c.item);}}
+                      <div key={id} onClick={function(){setActiveItem(c.item); setExpandedIngredients({}); setSubRecipes({});}}
                         style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:isActive?"rgba(99,102,241,0.1)":"rgba(255,255,255,0.02)",border:"1px solid "+(isActive?"rgba(99,102,241,0.3)":"rgba(255,255,255,0.05)"),borderRadius:10,cursor:"pointer"}}>
                         {getImg(c.item) && <img src={getImg(c.item)} style={{width:36,height:36,objectFit:"contain",borderRadius:8,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1}}>
@@ -407,25 +414,11 @@ export default function CraftManager({ session }) {
                   </div>
                 </div>
                 {activeItem.recipe && activeItem.recipe.ingredients && activeItem.recipe.ingredients.length > 0 ? (
-                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                    {activeItem.recipe.ingredients.map(function(ing,i) {
-                      const isCraftable = !!craftableIds[ing.id];
-                      const alreadyInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === ing.id; });
-                      return (
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"rgba(255,255,255,0.02)",borderRadius:9,border:"1px solid rgba(255,255,255,0.04)"}}>
-                          {ing.img && <img src={ing.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6}} alt="" onError={function(e){e.target.style.display="none";}} />}
-                          <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(ing)}</div>
-                          <div style={{fontWeight:700,color:"#818cf8",fontSize:14,marginRight:6}}>x{ing.quantity}</div>
-                          {isCraftable && (
-                            <button
-                              onClick={function(){ addIngredientToCraft(ing); }}
-                              title="Ajouter à la file de craft"
-                              style={{background:alreadyInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(alreadyInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:alreadyInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                              {alreadyInList ? "✓" : "⚗️ Crafter"}
-                            </button>
-                          )}
-                        </div>
-                      );
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {activeItem.recipe.ingredients.map(function(ing, i) {
+                      const craftEntry = craftList.find(function(c){ return (c.item.ankama_id || c.item.id) === (activeItem.ankama_id || activeItem.id); });
+                      const qty = craftEntry ? craftEntry.qty : 1;
+                      return renderIngredient(ing, i, qty, 0);
                     })}
                   </div>
                 ) : <div style={{color:"#475569",fontSize:13,textAlign:"center",padding:"10px 0"}}>Aucune recette disponible</div>}
@@ -438,20 +431,11 @@ export default function CraftManager({ session }) {
                 <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Indique tes ressources en banque pour voir ce qu'il manque</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:400,overflowY:"auto"}}>
                   {calculated.map(function(r,i) {
-                    const alreadyInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === r.id; });
                     return (
                       <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:r.missing===0?"rgba(34,197,94,0.05)":"rgba(255,255,255,0.02)",borderRadius:9,border:"1px solid "+(r.missing===0?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.04)")}}>
                         {r.img && <img src={r.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(r)}</div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          {r.isCraftable && (
-                            <button
-                              onClick={function(){ addIngredientToCraft(r); }}
-                              title="Ajouter à la file de craft"
-                              style={{background:alreadyInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(alreadyInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:alreadyInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                              {alreadyInList ? "✓" : "⚗️ Crafter"}
-                            </button>
-                          )}
                           <input type="number" min={0} value={bankResources[r.id]||""} placeholder="Banque"
                             onChange={function(e){setBankResources(function(prev){var next=Object.assign({},prev);next[r.id]=parseInt(e.target.value)||0;return next;});}}
                             style={{width:64,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,outline:"none",fontFamily:"inherit",textAlign:"center"}} />
@@ -487,7 +471,7 @@ export default function CraftManager({ session }) {
                           ) : (
                             <div style={{display:"flex",alignItems:"center",gap:6}}>
                               <div style={{fontWeight:600,fontSize:13,color:"#f1f5f9"}}>{s.name}</div>
-                              <button onClick={function(){setRenamingId(s.id);setRenameValue(s.name);}} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,padding:"2px 4px",fontFamily:"inherit"}} title="Renommer">✏️</button>
+                              <button onClick={function(){setRenamingId(s.id);setRenameValue(s.name);}} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,padding:"2px 4px",fontFamily:"inherit"}}>✏️</button>
                             </div>
                           )}
                           <div style={{fontSize:11,color:"#475569",marginTop:2}}>{JSON.parse(s.items||"[]").length} items</div>
