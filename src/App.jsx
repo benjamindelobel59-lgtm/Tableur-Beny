@@ -8,22 +8,11 @@ const supabase = createClient(
 );
 
 const T = {
-  bg:           "#0f0d0a",
-  surface:      "#17140f",
-  border:       "#2c2316",
-  accent:       "#f59e0b",
-  accent2:      "#fbbf24",
-  accentBg:     "#f59e0b14",
-  accentBorder: "#f59e0b35",
-  pvp:          "#f43f5e",
-  pvm:          "#34d399",
-  text:         "#fef3c7",
-  textSub:      "#92816a",
-  muted:        "#57483a",
-  dimmer:       "#211c12",
-  danger:       "#f87171",
-  success:      "#34d399",
-  font:         "'DM Sans', system-ui, sans-serif",
+  bg:"#0f0d0a",surface:"#17140f",border:"#2c2316",
+  accent:"#f59e0b",accent2:"#fbbf24",accentBg:"#f59e0b14",accentBorder:"#f59e0b35",
+  pvp:"#f43f5e",pvm:"#34d399",text:"#fef3c7",textSub:"#92816a",
+  muted:"#57483a",dimmer:"#211c12",danger:"#f87171",success:"#34d399",
+  font:"'DM Sans', system-ui, sans-serif",
 };
 
 const CLASSES = ["Iop","Cra","Feca","Xelor","Enutrof","Sacrieur","Sadida","Ecaflip","Eniripsa","Sram","Pandawa","Roublard","Zobal","Steamer","Eliotrope","Huppermage","Ouginak","Forgelance","Osamodas"];
@@ -32,52 +21,57 @@ const ETAT_COLORS = {"Prêt":"#34d399","À stuff":"#6ee7b7","À xp":"#818cf8","P
 const CLASS_ICONS = {"Iop":"/classes/iop.png","Cra":"/classes/cra.png","Feca":"/classes/feca.png","Xelor":"/classes/xelor.png","Enutrof":"/classes/enutrof.png","Sacrieur":"/classes/sacrieur.png","Sadida":"/classes/sadida.png","Ecaflip":"/classes/ecaflip.png","Eniripsa":"/classes/eniripsa.png","Sram":"/classes/sram.png","Pandawa":"/classes/pandawa.png","Roublard":"/classes/roublard.png","Zobal":"/classes/zobal.png","Steamer":"/classes/steamer.png","Eliotrope":"/classes/eliotrope.png","Huppermage":"/classes/huppermage.png","Ouginak":"/classes/ouginak.png","Forgelance":"/classes/forgelance.png","Osamodas":"/classes/osamodas.png"};
 
 const SURCATS = [
-  { id:"all", label:"Tous", icon:"⚔️", color:T.accent },
-  { id:"PVP", label:"PVP",  icon:"🏆", color:T.pvp },
-  { id:"PVM", label:"PVM",  icon:"🐉", color:T.pvm },
+  {id:"all",label:"Tous",icon:"⚔️",color:T.accent},
+  {id:"PVP",label:"PVP",icon:"🏆",color:T.pvp},
+  {id:"PVM",label:"PVM",icon:"🐉",color:T.pvm},
 ];
-
 const CATEGORIES = [
-  { id:"all",     label:"Tous",         icon:"⚔️", color:T.accent,  etats:null },
-  { id:"pret",    label:"Prêt",         icon:"✅", color:"#34d399", etats:["Prêt"] },
-  { id:"astuff",  label:"À stuff",      icon:"🛡️", color:"#6ee7b7", etats:["À stuff"] },
-  { id:"axp",     label:"À xp",         icon:"⭐", color:"#818cf8", etats:["À xp"] },
-  { id:"sagesse", label:"Pano Sagesse", icon:"🟡", color:"#fbbf24", etats:["Pano Sagesse"] },
-  { id:"mort",    label:"Mort",         icon:"💀", color:"#f87171", etats:["Mort"] },
-  { id:"check",   label:"Check",        icon:"🔍", color:"#22d3ee", etats:["Check"] },
-  { id:"metier",  label:"Métier",       icon:"⚒️", color:"#fb923c", etats:["Métier"] },
-  { id:"banque",  label:"Banque",       icon:"🏦", color:"#a8a29e", etats:["Banque"] },
+  {id:"all",    label:"Tous",        icon:"⚔️",color:T.accent, etats:null},
+  {id:"pret",   label:"Prêt",        icon:"✅",color:"#34d399",etats:["Prêt"]},
+  {id:"astuff", label:"À stuff",     icon:"🛡️",color:"#6ee7b7",etats:["À stuff"]},
+  {id:"axp",    label:"À xp",        icon:"⭐",color:"#818cf8",etats:["À xp"]},
+  {id:"sagesse",label:"Pano Sagesse",icon:"🟡",color:"#fbbf24",etats:["Pano Sagesse"]},
+  {id:"mort",   label:"Mort",        icon:"💀",color:"#f87171",etats:["Mort"]},
+  {id:"check",  label:"Check",       icon:"🔍",color:"#22d3ee",etats:["Check"]},
+  {id:"metier", label:"Métier",      icon:"⚒️",color:"#fb923c",etats:["Métier"]},
+  {id:"banque", label:"Banque",      icon:"🏦",color:"#a8a29e",etats:["Banque"]},
 ];
 
-const defaultChar = () => ({ compte:"", nom:"", classe:"Iop", level:1, level_max:1, etat:"Prêt", frigost:"Continent", surcat:"PVM" });
-const getCatForEtat = (etat) => { for (const cat of CATEGORIES) { if (cat.etats && cat.etats.includes(etat)) return cat.id; } return "all"; };
+const defaultChar = () => ({compte:"",nom:"",classe:"Iop",level:1,level_max:1,etat:"Prêt",frigost:"Continent",surcat:"PVM"});
+const getCatForEtat = (etat) => { for (const c of CATEGORIES) { if (c.etats?.includes(etat)) return c.id; } return "all"; };
+const fi = {width:"100%",background:T.dimmer,border:"1px solid "+T.border,borderRadius:9,padding:"10px 14px",color:T.text,fontSize:14,outline:"none",fontFamily:T.font,boxSizing:"border-box"};
 
-const fi = { width:"100%", background:T.dimmer, border:"1px solid "+T.border, borderRadius:9, padding:"10px 14px", color:T.text, fontSize:14, outline:"none", fontFamily:T.font, boxSizing:"border-box" };
+// ─── TYPE LABELS ──────────────────────────────────────────────
+const SHARE_TYPE_LABELS = {
+  all:   {icon:"⚔️", label:"Tous les personnages"},
+  compte:{icon:"👤", label:"Un compte spécifique"},
+  craft: {icon:"⚗️", label:"Craft Manager"},
+};
 
+// ─── AUTH ─────────────────────────────────────────────────────
 function AuthPage() {
-  const [mode, setMode]         = useState("login");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
-  const [success, setSuccess]   = useState("");
+  const [mode,setMode]         = useState("login");
+  const [email,setEmail]       = useState("");
+  const [password,setPassword] = useState("");
+  const [loading,setLoading]   = useState(false);
+  const [error,setError]       = useState("");
+  const [success,setSuccess]   = useState("");
 
   const handle = async () => {
     setError(""); setSuccess(""); setLoading(true);
     try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (mode==="login") {
+        const {error} = await supabase.auth.signInWithPassword({email,password});
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const {error} = await supabase.auth.signUp({email,password});
         if (error) throw error;
         setSuccess("Compte créé ! Vérifie ton email puis connecte-toi.");
         setMode("login"); setLoading(false); return;
       }
-    } catch (e) { setError(e.message || "Une erreur est survenue"); }
+    } catch(e) { setError(e.message||"Une erreur est survenue"); }
     setLoading(false);
   };
-
   return (
     <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:-300,left:-200,width:700,height:700,background:"radial-gradient(circle,rgba(245,158,11,0.07) 0%,transparent 70%)",pointerEvents:"none"}} />
@@ -117,112 +111,425 @@ function AuthPage() {
   );
 }
 
+// ─── PARTAGES TAB ─────────────────────────────────────────────
+function PartagesTab({ session, characters, showToast }) {
+  const [myShares, setMyShares]           = useState([]);
+  const [receivedShares, setReceivedShares] = useState([]);
+  const [showModal, setShowModal]         = useState(false);
+  const [viewShare, setViewShare]         = useState(null); // share object being viewed
+  const [viewChars, setViewChars]         = useState([]);
+  const [viewLoading, setViewLoading]     = useState(false);
+
+  // Form state
+  const [shareType, setShareType]   = useState("all");
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareCompte, setShareCompte] = useState("");
+  const [canEdit, setCanEdit]       = useState(false);
+  const [saving, setSaving]         = useState(false);
+
+  const comptes = [...new Set(characters.map(c=>c.compte).filter(Boolean))];
+
+  useEffect(() => { loadMyShares(); loadReceivedShares(); }, []);
+
+  const loadMyShares = async () => {
+    const {data} = await supabase.from("shares").select("*").eq("owner_id", session.user.id).order("created_at",{ascending:false});
+    if (data) setMyShares(data);
+  };
+
+  const loadReceivedShares = async () => {
+    const {data} = await supabase.from("shares").select("*").eq("shared_with_email", session.user.email).order("created_at",{ascending:false});
+    if (data) setReceivedShares(data);
+  };
+
+  const createShare = async () => {
+    if (!shareEmail.trim()) return showToast("Email requis !","error");
+    if (shareEmail.trim().toLowerCase()===session.user.email.toLowerCase()) return showToast("Tu ne peux pas partager avec toi-même !","error");
+    if (shareType==="compte" && !shareCompte) return showToast("Choisis un compte à partager !","error");
+    setSaving(true);
+    const {error} = await supabase.from("shares").insert([{
+      owner_id: session.user.id,
+      owner_email: session.user.email,
+      shared_with_email: shareEmail.trim().toLowerCase(),
+      share_type: shareType,
+      compte_name: shareType==="compte" ? shareCompte : null,
+      can_edit: canEdit,
+    }]);
+    setSaving(false);
+    if (error) return showToast("Erreur : "+error.message,"error");
+    showToast("Partage créé ✓");
+    setShowModal(false); setShareEmail(""); setShareType("all"); setShareCompte(""); setCanEdit(false);
+    loadMyShares();
+  };
+
+  const deleteShare = async (id) => {
+    await supabase.from("shares").delete().eq("id",id);
+    showToast("Partage supprimé");
+    loadMyShares();
+  };
+
+  const openReceivedShare = async (share) => {
+    setViewShare(share);
+    setViewChars([]);
+    setViewLoading(true);
+    // Load characters from the owner
+    let query = supabase.from("characters").select("*").eq("user_id", share.owner_id);
+    if (share.share_type==="compte") query = query.eq("compte", share.compte_name);
+    const {data} = await query.order("created_at",{ascending:true});
+    setViewChars(data||[]);
+    setViewLoading(false);
+  };
+
+  const ShareTypeBtn = ({id}) => {
+    const t = SHARE_TYPE_LABELS[id];
+    const active = shareType===id;
+    return (
+      <button onClick={()=>setShareType(id)} style={{flex:1,padding:"11px 8px",borderRadius:9,border:"2px solid "+(active?T.accent:T.border),background:active?T.accentBg:T.dimmer,color:active?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:active?700:400,transition:"all 0.15s",textAlign:"center"}}>
+        <div style={{fontSize:18,marginBottom:3}}>{t.icon}</div>
+        <div style={{fontSize:10,lineHeight:1.3}}>{t.label}</div>
+      </button>
+    );
+  };
+
+  // ── Vue d'un partage reçu ────────────────────────────────
+  if (viewShare) {
+    const typeInfo = SHARE_TYPE_LABELS[viewShare.share_type];
+    return (
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <button onClick={()=>setViewShare(null)} style={{background:T.dimmer,border:"1px solid "+T.border,borderRadius:8,padding:"6px 12px",color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:12}}>← Retour</button>
+          <div>
+            <div style={{fontWeight:700,fontSize:15,color:T.text}}>{typeInfo.icon} {viewShare.share_type==="compte"?`Compte "${viewShare.compte_name}"`:typeInfo.label}</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:1}}>Partagé par <span style={{color:T.accent}}>{viewShare.owner_email}</span> · {viewShare.can_edit?"Lecture + modification":"Lecture seule"}</div>
+          </div>
+        </div>
+        {viewLoading ? (
+          <div style={{textAlign:"center",padding:"60px",color:T.muted}}><div style={{fontSize:32,marginBottom:8}}>⏳</div>Chargement...</div>
+        ) : viewChars.length===0 ? (
+          <div style={{textAlign:"center",padding:"60px",color:T.muted}}><div style={{fontSize:32,marginBottom:8}}>🗡️</div>Aucun personnage dans ce partage</div>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:10}}>
+            {viewChars.map((char)=>{
+              const catColor = CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;
+              const sc = SURCATS.find(s=>s.id===(char.surcat||"PVM"))||SURCATS[2];
+              return (
+                <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,overflow:"hidden"}}>
+                  <div style={{height:2,background:"linear-gradient(90deg,"+catColor+","+catColor+"30)"}} />
+                  <div style={{padding:"12px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
+                      <div style={{width:38,height:38,borderRadius:10,background:catColor+"12",border:"1px solid "+catColor+"28",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <img src={CLASS_ICONS[char.classe]} style={{width:30,height:30,objectFit:"contain"}} alt="" onError={e=>e.target.style.display="none"} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{fontWeight:700,fontSize:13,color:T.text}}>{char.nom}</span>
+                          <span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:20,background:sc.color+"18",color:sc.color}}>{sc.icon} {sc.label}</span>
+                        </div>
+                        <div style={{fontSize:10,color:T.muted,marginTop:1}}>{char.compte}</div>
+                      </div>
+                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:5,background:ETAT_COLORS[char.etat]+"15",color:ETAT_COLORS[char.etat],fontWeight:600}}>{char.etat}</span>
+                    </div>
+                    <div style={{display:"flex",gap:5}}>
+                      {[{l:"Classe",v:char.classe,c:T.textSub},{l:"Level",v:char.level,c:T.accent},{l:"Max",v:char.level_max,c:T.accent2}].map(s=>(
+                        <div key={s.l} style={{flex:1,background:T.dimmer,borderRadius:6,padding:"4px 6px",textAlign:"center",border:"1px solid "+T.border}}>
+                          <div style={{fontSize:7,color:T.muted,marginBottom:1}}>{s.l}</div>
+                          <div style={{fontSize:11,fontWeight:600,color:s.c}}>{s.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+
+        {/* ── MES PARTAGES ──────────────────────────────── */}
+        <div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:15,color:T.text}}>📤 Mes partages</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>Ce que tu partages avec d'autres</div>
+            </div>
+            <button onClick={()=>setShowModal(true)} style={{background:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:T.bg,border:"none",borderRadius:9,padding:"8px 16px",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:T.font,boxShadow:"0 4px 14px "+T.accent+"40"}}>
+              + Nouveau partage
+            </button>
+          </div>
+
+          {myShares.length===0 ? (
+            <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,padding:"40px 20px",textAlign:"center"}}>
+              <div style={{fontSize:34,marginBottom:8}}>🔒</div>
+              <div style={{color:T.muted,fontSize:13}}>Tu ne partages rien pour l'instant</div>
+              <div style={{color:T.muted,fontSize:11,marginTop:4}}>Clique sur "+ Nouveau partage" pour commencer</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {myShares.map(s=>{
+                const t = SHARE_TYPE_LABELS[s.share_type];
+                return (
+                  <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:38,height:38,borderRadius:9,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{t.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:T.text}}>
+                        {s.share_type==="compte" ? `Compte "${s.compte_name}"` : t.label}
+                      </div>
+                      <div style={{fontSize:10,color:T.muted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        → <span style={{color:T.accent}}>{s.shared_with_email}</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>
+                        {s.can_edit?"✏️ Modifiable":"👁️ Lecture"}
+                      </span>
+                      <button onClick={()=>deleteShare(s.id)} style={{background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.18)",borderRadius:6,padding:"2px 8px",color:T.danger,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Supprimer</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── PARTAGÉ AVEC MOI ──────────────────────────── */}
+        <div>
+          <div style={{marginBottom:14}}>
+            <div style={{fontWeight:700,fontSize:15,color:T.text}}>📥 Partagé avec moi</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Ce que d'autres ont partagé avec toi</div>
+          </div>
+
+          {receivedShares.length===0 ? (
+            <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,padding:"40px 20px",textAlign:"center"}}>
+              <div style={{fontSize:34,marginBottom:8}}>📭</div>
+              <div style={{color:T.muted,fontSize:13}}>Personne n'a encore partagé avec toi</div>
+              <div style={{color:T.muted,fontSize:11,marginTop:4}}>Demande à un ami de te partager son tableur</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {receivedShares.map(s=>{
+                const t = SHARE_TYPE_LABELS[s.share_type];
+                return (
+                  <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:38,height:38,borderRadius:9,background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{t.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:T.text}}>
+                        {s.share_type==="compte" ? `Compte "${s.compte_name}"` : t.label}
+                      </div>
+                      <div style={{fontSize:10,color:T.muted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        De <span style={{color:T.success}}>{s.owner_email}</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>
+                        {s.can_edit?"✏️ Modifiable":"👁️ Lecture"}
+                      </span>
+                      {s.share_type!=="craft" && (
+                        <button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 8px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Voir</button>
+                      )}
+                      {s.share_type==="craft" && (
+                        <span style={{fontSize:9,color:T.muted}}>Onglet Craft</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── MODAL NOUVEAU PARTAGE ──────────────────────── */}
+      {showModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,backdropFilter:"blur(10px)"}}>
+          <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:18,padding:"26px",width:"100%",maxWidth:480,boxShadow:"0 40px 80px rgba(0,0,0,0.8)",position:"relative",margin:16}}>
+            <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,"+T.accent+","+T.accent2+")",borderRadius:"18px 18px 0 0"}} />
+            <button onClick={()=>setShowModal(false)} style={{position:"absolute",top:14,right:14,background:T.dimmer,border:"1px solid "+T.border,color:T.muted,fontSize:14,cursor:"pointer",borderRadius:7,padding:"3px 9px",fontFamily:T.font}}>✕</button>
+            <h2 style={{margin:"0 0 20px",color:T.text,fontSize:17,fontWeight:700}}>🔗 Nouveau partage</h2>
+
+            {/* Type */}
+            <div style={{marginBottom:16}}>
+              <label style={{display:"block",color:T.muted,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Que veux-tu partager ?</label>
+              <div style={{display:"flex",gap:8}}>
+                <ShareTypeBtn id="all" />
+                <ShareTypeBtn id="compte" />
+                <ShareTypeBtn id="craft" />
+              </div>
+            </div>
+
+            {/* Compte selector */}
+            {shareType==="compte" && (
+              <div style={{marginBottom:14}}>
+                <label style={{display:"block",color:T.muted,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Quel compte ?</label>
+                {comptes.length===0 ? (
+                  <div style={{color:T.muted,fontSize:12,padding:"10px",background:T.dimmer,borderRadius:8,border:"1px solid "+T.border}}>Aucun compte trouvé dans tes personnages</div>
+                ) : (
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {comptes.map(c=>(
+                      <button key={c} onClick={()=>setShareCompte(c)} style={{padding:"5px 12px",borderRadius:7,border:"1px solid "+(shareCompte===c?T.accent:T.border),background:shareCompte===c?T.accentBg:T.dimmer,color:shareCompte===c?T.accent:T.muted,fontFamily:T.font,fontSize:12,cursor:"pointer",fontWeight:shareCompte===c?600:400}}>
+                        👤 {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Email */}
+            <div style={{marginBottom:14}}>
+              <label style={{display:"block",color:T.muted,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Email du destinataire</label>
+              <input value={shareEmail} onChange={e=>setShareEmail(e.target.value)} placeholder="ami@email.com" style={fi} />
+            </div>
+
+            {/* Permissions */}
+            <div style={{marginBottom:20}}>
+              <label style={{display:"block",color:T.muted,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Permission</label>
+              <div style={{display:"flex",gap:8}}>
+                {[{v:false,icon:"👁️",label:"Lecture seule",sub:"Peut voir, pas modifier"},{v:true,icon:"✏️",label:"Lecture + modification",sub:"Peut changer les états"}].map(p=>(
+                  <button key={p.label} onClick={()=>setCanEdit(p.v)} style={{flex:1,padding:"10px",borderRadius:9,border:"2px solid "+(canEdit===p.v?T.accent:T.border),background:canEdit===p.v?T.accentBg:T.dimmer,color:canEdit===p.v?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,textAlign:"left",transition:"all 0.15s"}}>
+                    <div style={{fontSize:16,marginBottom:3}}>{p.icon}</div>
+                    <div style={{fontSize:11,fontWeight:600}}>{p.label}</div>
+                    <div style={{fontSize:9,marginTop:1,opacity:0.7}}>{p.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setShowModal(false)} style={{flex:1,padding:"10px",borderRadius:9,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13}}>Annuler</button>
+              <button onClick={createShare} disabled={saving} style={{flex:2,padding:"10px",borderRadius:9,border:"none",background:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:T.bg,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:T.font,fontSize:13,boxShadow:"0 4px 16px "+T.accent+"40"}}>
+                {saving?"Création...":"🔗 Créer le partage"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────
 export default function App() {
-  const [session, setSession]             = useState(null);
-  const [mainTab, setMainTab]             = useState("persos");
-  const [authLoading, setAuthLoading]     = useState(true);
-  const [characters, setCharacters]       = useState([]);
-  const [loading, setLoading]             = useState(false);
-  const [activeSurcat, setActiveSurcat]   = useState("all");
-  const [activeTab, setActiveTab]         = useState("all");
-  const [search, setSearch]               = useState("");
-  const [filterCompte, setFilterCompte]   = useState("Tous");
-  const [sortBy, setSortBy]               = useState("compte");
-  const [showForm, setShowForm]           = useState(false);
-  const [editingChar, setEditingChar]     = useState(null);
-  const [form, setForm]                   = useState(defaultChar());
-  const [toast, setToast]                 = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [session,setSession]             = useState(null);
+  const [mainTab,setMainTab]             = useState("persos");
+  const [authLoading,setAuthLoading]     = useState(true);
+  const [characters,setCharacters]       = useState([]);
+  const [loading,setLoading]             = useState(false);
+  const [activeSurcat,setActiveSurcat]   = useState("all");
+  const [activeTab,setActiveTab]         = useState("all");
+  const [search,setSearch]               = useState("");
+  const [filterCompte,setFilterCompte]   = useState("Tous");
+  const [sortBy,setSortBy]               = useState("compte");
+  const [showForm,setShowForm]           = useState(false);
+  const [editingChar,setEditingChar]     = useState(null);
+  const [form,setForm]                   = useState(defaultChar());
+  const [toast,setToast]                 = useState(null);
+  const [deleteConfirm,setDeleteConfirm] = useState(null);
+  const [shareCount,setShareCount]       = useState(0); // badge
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setAuthLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => subscription.unsubscribe();
-  }, []);
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{ setSession(session); setAuthLoading(false); });
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((_e,s)=>setSession(s));
+    return ()=>subscription.unsubscribe();
+  },[]);
 
-  useEffect(() => { if (session) loadCharacters(); }, [session]);
+  useEffect(()=>{ if(session){ loadCharacters(); loadShareCount(); } },[session]);
 
-  const loadCharacters = async () => {
+  const loadCharacters = async()=>{
     setLoading(true);
-    const { data, error } = await supabase.from("characters").select("*").order("created_at", { ascending: true });
-    if (!error && data) setCharacters(data);
+    const {data,error} = await supabase.from("characters").select("*").order("created_at",{ascending:true});
+    if(!error&&data) setCharacters(data);
     setLoading(false);
   };
 
-  const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
-  const openAdd   = () => { setForm(defaultChar()); setEditingChar(null); setShowForm(true); };
-  const openEdit  = (c) => { setForm({ compte:c.compte,nom:c.nom,classe:c.classe,level:c.level,level_max:c.level_max,etat:c.etat,frigost:c.frigost,surcat:c.surcat||"PVM" }); setEditingChar(c.id); setShowForm(true); };
+  const loadShareCount = async()=>{
+    const {data} = await supabase.from("shares").select("id").eq("shared_with_email",session?.user?.email);
+    if(data) setShareCount(data.length);
+  };
 
-  const handleSubmit = async () => {
-    if (!form.nom.trim()) return showToast("Le nom est requis !","error");
-    if (editingChar) {
-      const { error } = await supabase.from("characters").update(form).eq("id", editingChar);
-      if (error) return showToast("Erreur lors de la modification","error");
+  const showToast = (msg,type="success")=>{ setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
+  const openAdd  = ()=>{ setForm(defaultChar()); setEditingChar(null); setShowForm(true); };
+  const openEdit = (c)=>{ setForm({compte:c.compte,nom:c.nom,classe:c.classe,level:c.level,level_max:c.level_max,etat:c.etat,frigost:c.frigost,surcat:c.surcat||"PVM"}); setEditingChar(c.id); setShowForm(true); };
+
+  const handleSubmit = async()=>{
+    if(!form.nom.trim()) return showToast("Le nom est requis !","error");
+    if(editingChar){
+      const {error} = await supabase.from("characters").update(form).eq("id",editingChar);
+      if(error) return showToast("Erreur lors de la modification","error");
       showToast("Personnage modifié ✓");
     } else {
-      const { error } = await supabase.from("characters").insert([{ ...form, user_id: session.user.id }]);
-      if (error) return showToast("Erreur lors de l'ajout","error");
+      const {error} = await supabase.from("characters").insert([{...form,user_id:session.user.id}]);
+      if(error) return showToast("Erreur lors de l'ajout","error");
       showToast("Personnage ajouté ✓");
     }
     await loadCharacters(); setShowForm(false);
   };
 
-  const handleDelete = async (id) => {
-    const { error } = await supabase.from("characters").delete().eq("id", id);
-    if (error) return showToast("Erreur lors de la suppression","error");
+  const handleDelete = async(id)=>{
+    const {error} = await supabase.from("characters").delete().eq("id",id);
+    if(error) return showToast("Erreur lors de la suppression","error");
     await loadCharacters(); setDeleteConfirm(null);
     showToast("Personnage supprimé");
   };
 
-  const handleEtatChange = async (id, etat) => {
-    const { error } = await supabase.from("characters").update({ etat }).eq("id", id);
-    if (error) return;
+  const handleEtatChange = async(id,etat)=>{
+    const {error} = await supabase.from("characters").update({etat}).eq("id",id);
+    if(error) return;
     setCharacters(characters.map(c=>c.id===id?{...c,etat}:c));
     const newCat = getCatForEtat(etat);
     setActiveTab(newCat);
     showToast("Déplacé → \""+CATEGORIES.find(c=>c.id===newCat)?.label+"\" ✓");
   };
 
-  const handleSurcatChange = async (id, surcat) => {
-    const { error } = await supabase.from("characters").update({ surcat }).eq("id", id);
-    if (error) return;
+  const handleSurcatChange = async(id,surcat)=>{
+    const {error} = await supabase.from("characters").update({surcat}).eq("id",id);
+    if(error) return;
     setCharacters(characters.map(c=>c.id===id?{...c,surcat}:c));
     showToast("Dossier → "+surcat+" ✓");
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); };
+  const handleLogout = async()=>{ await supabase.auth.signOut(); };
 
-  if (authLoading) return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.accent,fontSize:20,fontFamily:T.font}}>
+  if(authLoading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.accent,fontFamily:T.font}}>
       <div style={{textAlign:"center"}}><div style={{fontSize:48,marginBottom:14}}>⚔️</div><div style={{letterSpacing:3,color:T.textSub}}>CHARGEMENT...</div></div>
     </div>
   );
-
-  if (!session) return <AuthPage />;
+  if(!session) return <AuthPage />;
 
   const comptes     = ["Tous",...Array.from(new Set(characters.map(c=>c.compte).filter(Boolean)))];
-  const countSurcat = (sc) => sc.id==="all" ? characters.length : characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
-  const countFor    = (cat) => { const base = activeSurcat==="all"?characters:characters.filter(c=>(c.surcat||"PVM")===activeSurcat); return cat.etats?base.filter(c=>cat.etats.includes(c.etat)).length:base.length; };
+  const countSurcat = (sc)=> sc.id==="all"?characters.length:characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
+  const countFor    = (cat)=>{ const base=activeSurcat==="all"?characters:characters.filter(c=>(c.surcat||"PVM")===activeSurcat); return cat.etats?base.filter(c=>cat.etats.includes(c.etat)).length:base.length; };
 
-  const filtered = characters.filter(c => {
+  const filtered = characters.filter(c=>{
     const inSurcat = activeSurcat==="all"||(c.surcat||"PVM")===activeSurcat;
     const cat      = CATEGORIES.find(cat=>cat.id===activeTab);
     const inTab    = activeTab==="all"||(cat?.etats&&cat.etats.includes(c.etat));
     const s        = search.toLowerCase();
     return inSurcat&&inTab&&(c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s))&&(filterCompte==="Tous"||c.compte===filterCompte);
-  }).sort((a,b) => {
-    if (sortBy==="compte") return (a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");
-    if (sortBy==="level")  return b.level-a.level;
-    if (sortBy==="nom")    return (a.nom||"").localeCompare(b.nom||"");
+  }).sort((a,b)=>{
+    if(sortBy==="compte") return (a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");
+    if(sortBy==="level")  return b.level-a.level;
+    if(sortBy==="nom")    return (a.nom||"").localeCompare(b.nom||"");
     return (a.classe||"").localeCompare(b.classe||"");
   });
 
-  const TabBtn = ({active, color, onClick, icon, label, count}) => (
+  const TabBtn = ({active,color,onClick,icon,label,count})=>(
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:8,border:"1px solid "+(active?color+"55":T.border),background:active?color+"12":T.surface,color:active?color:T.muted,cursor:"pointer",fontWeight:active?600:400,fontSize:13,transition:"all 0.15s",fontFamily:T.font}}>
       <span>{icon}</span><span>{label}</span>
       <span style={{background:active?color+"28":T.dimmer,color:active?color:T.muted,borderRadius:20,padding:"0 6px",fontSize:11,fontWeight:700}}>{count}</span>
     </button>
   );
+
+  const MAIN_TABS = [
+    {id:"persos", icon:"⚔️", label:"Personnages"},
+    {id:"craft",  icon:"⚗️", label:"Craft Manager"},
+    {id:"partages",icon:"🔗", label:"Partages", badge:shareCount},
+  ];
 
   return (
     <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.font,color:T.text}}>
@@ -257,35 +564,42 @@ export default function App() {
       {/* MAIN TABS */}
       <div style={{borderBottom:"1px solid "+T.border,background:T.bg}}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 26px",display:"flex",gap:2}}>
-          {[{id:"persos",icon:"⚔️",label:"Personnages"},{id:"craft",icon:"⚗️",label:"Craft Manager"}].map(t=>(
-            <button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"11px 18px",border:"none",borderBottom:mainTab===t.id?"2px solid "+T.accent:"2px solid transparent",background:"transparent",color:mainTab===t.id?T.accent:T.muted,fontWeight:mainTab===t.id?700:400,cursor:"pointer",fontSize:13,fontFamily:T.font,display:"flex",alignItems:"center",gap:6,transition:"all 0.2s"}}>
-              <span>{t.icon}</span><span>{t.label}</span>
+          {MAIN_TABS.map(t=>(
+            <button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"11px 18px",border:"none",borderBottom:mainTab===t.id?"2px solid "+T.accent:"2px solid transparent",background:"transparent",color:mainTab===t.id?T.accent:T.muted,fontWeight:mainTab===t.id?700:400,cursor:"pointer",fontSize:13,fontFamily:T.font,display:"flex",alignItems:"center",gap:6,transition:"all 0.2s",position:"relative"}}>
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
+              {t.badge>0 && (
+                <span style={{background:T.pvp,color:"#fff",borderRadius:20,padding:"1px 6px",fontSize:9,fontWeight:700,minWidth:16,textAlign:"center"}}>{t.badge}</span>
+              )}
             </button>
           ))}
         </div>
       </div>
 
+      {/* CRAFT */}
       {mainTab==="craft" && <CraftManager session={session} />}
 
-      <div style={{maxWidth:1400,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"20px 26px",position:"relative",zIndex:1}}>
+      {/* PARTAGES */}
+      {mainTab==="partages" && (
+        <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px",position:"relative",zIndex:1}}>
+          <PartagesTab session={session} characters={characters} showToast={showToast} />
+        </div>
+      )}
 
-        {/* Dossier */}
+      {/* PERSOS */}
+      <div style={{maxWidth:1400,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"20px 26px",position:"relative",zIndex:1}}>
         <div style={{marginBottom:12}}>
           <div style={{fontSize:9,color:T.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>📁 Dossier</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {SURCATS.map(sc=><TabBtn key={sc.id} active={activeSurcat===sc.id} color={sc.color} onClick={()=>{setActiveSurcat(sc.id);setActiveTab("all");}} icon={sc.icon} label={sc.label} count={countSurcat(sc)} />)}
           </div>
         </div>
-
-        {/* État */}
         <div style={{marginBottom:18}}>
           <div style={{fontSize:9,color:T.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>🗂️ État</div>
           <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
             {CATEGORIES.map(cat=><TabBtn key={cat.id} active={activeTab===cat.id} color={cat.color} onClick={()=>setActiveTab(cat.id)} icon={cat.icon} label={cat.label} count={countFor(cat)} />)}
           </div>
         </div>
-
-        {/* Filtres */}
         <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{position:"relative",flex:1,minWidth:180}}>
             <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
@@ -293,14 +607,10 @@ export default function App() {
           </div>
           <select value={filterCompte} onChange={e=>setFilterCompte(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}>{comptes.map(c=><option key={c}>{c}</option>)}</select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}>
-            <option value="compte">Trier: Compte</option>
-            <option value="nom">Trier: Nom</option>
-            <option value="level">Trier: Level</option>
-            <option value="classe">Trier: Classe</option>
+            <option value="compte">Trier: Compte</option><option value="nom">Trier: Nom</option>
+            <option value="level">Trier: Level</option><option value="classe">Trier: Classe</option>
           </select>
         </div>
-
-        {/* Cartes */}
         {loading ? (
           <div style={{textAlign:"center",padding:"80px",color:T.muted}}><div style={{fontSize:38,marginBottom:10}}>⏳</div><div>Chargement...</div></div>
         ) : filtered.length===0 ? (
