@@ -58,6 +58,34 @@ export default function CraftManager({ session }) {
 
   const ingName = (ing) => typeof ing.name === "string" ? ing.name : (ing.name && ing.name.fr) || "";
 
+  // ✅ Calcul automatique dès que craftList ou bankResources change
+  const doCalculate = useCallback((list, bank) => {
+    if (!list || list.length === 0) { setCalculated(null); return; }
+    const totals = {};
+    for (let ci = 0; ci < list.length; ci++) {
+      const item = list[ci].item;
+      const qty = list[ci].qty;
+      if (!item.recipe || !item.recipe.ingredients) continue;
+      for (let ii = 0; ii < item.recipe.ingredients.length; ii++) {
+        const ing = item.recipe.ingredients[ii];
+        const key = ing.id;
+        if (!totals[key]) totals[key] = Object.assign({}, ing, { needed: 0 });
+        totals[key].needed += (ing.quantity || 1) * qty;
+      }
+    }
+    const result = Object.values(totals).map(function(r) {
+      return Object.assign({}, r, {
+        inBank: bank[r.id] || 0,
+        missing: Math.max(0, r.needed - (bank[r.id] || 0)),
+      });
+    });
+    setCalculated(result);
+  }, []);
+
+  useEffect(() => {
+    if (craftList.length > 0) doCalculate(craftList, bankResources);
+  }, [craftList, bankResources, doCalculate]);
+
   const searchItems = useCallback(async (q) => {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
@@ -81,7 +109,6 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  // Fetch un ingrédient selon son subtype
   const fetchIngredient = async (ingId, subtype) => {
     const endpoint = subtype === "equipment" ? "equipment"
       : subtype === "consumables" ? "consumables"
@@ -93,7 +120,6 @@ export default function CraftManager({ session }) {
         return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
       }
     } catch (_) {}
-    // fallback
     for (const ep of ["resources", "equipment", "consumables"]) {
       if (ep === endpoint) continue;
       try {
@@ -107,13 +133,13 @@ export default function CraftManager({ session }) {
     return { name: "", img: null, fullItem: null };
   };
 
-  // Parse une liste de recette brute → tableau d'ingrédients enrichis
   const parseRecipeIngredients = async (recipe) => {
     return Promise.all(
       recipe.map(async function(e) {
         const ingId = e.item_ankama_id;
+        // ✅ subtype toujours sauvegardé depuis l'API
         const subtype = e.item_subtype || "resources";
-        if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "" };
+        if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "resources" };
         const details = await fetchIngredient(ingId, subtype);
         return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1, subtype };
       })
@@ -136,22 +162,18 @@ export default function CraftManager({ session }) {
     finally { setLoadingRecipe(false); }
   };
 
-  // ✅ Clic sur ▼ : fetch la recette de l'ingrédient directement
   const toggleSubRecipe = async (ing, parentQty) => {
     const key = ing.id;
-    // Ferme si déjà ouvert
     if (expandedIngredients[key]) {
       setExpandedIngredients(function(prev) { var n = Object.assign({}, prev); delete n[key]; return n; });
       return;
     }
-    // Ouvre sans refetch si déjà chargé
     if (subRecipes[key]) {
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
       return;
     }
     setLoadingSubRecipe(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     try {
-      // Fetch directement /items/equipment/{id} pour avoir la recette
       const res = await fetch(API + "/items/equipment/" + key);
       if (!res.ok) return;
       const data = await res.json();
@@ -164,7 +186,6 @@ export default function CraftManager({ session }) {
     }
   };
 
-  // Ajoute un ingrédient craftable à la file
   const addIngredientToCraft = async (ing) => {
     const existing = craftList.find(function(c) { return (c.item.ankama_id || c.item.id) === ing.id; });
     if (existing) {
@@ -211,7 +232,6 @@ export default function CraftManager({ session }) {
   const removeFromList = (id) => {
     setCraftList(craftList.filter(function(c) { return (c.item.ankama_id || c.item.id) !== id; }));
     if ((activeItem && (activeItem.ankama_id || activeItem.id)) === id) setActiveItem(null);
-    setCalculated(null);
   };
 
   const updateQty = (id, qty) => {
@@ -219,30 +239,6 @@ export default function CraftManager({ session }) {
     setCraftList(craftList.map(function(c) {
       return (c.item.ankama_id || c.item.id) === id ? Object.assign({}, c, { qty: qty }) : c;
     }));
-    setCalculated(null);
-  };
-
-  const calculate = () => {
-    if (craftList.length === 0) return;
-    const totals = {};
-    for (let ci = 0; ci < craftList.length; ci++) {
-      const item = craftList[ci].item;
-      const qty = craftList[ci].qty;
-      if (!item.recipe || !item.recipe.ingredients) continue;
-      for (let ii = 0; ii < item.recipe.ingredients.length; ii++) {
-        const ing = item.recipe.ingredients[ii];
-        const key = ing.id;
-        if (!totals[key]) totals[key] = Object.assign({}, ing, { needed: 0 });
-        totals[key].needed += (ing.quantity || 1) * qty;
-      }
-    }
-    const result = Object.values(totals).map(function(r) {
-      return Object.assign({}, r, {
-        inBank: bankResources[r.id] || 0,
-        missing: Math.max(0, r.needed - (bankResources[r.id] || 0)),
-      });
-    });
-    setCalculated(result);
   };
 
   const openSaveModal = () => {
@@ -266,9 +262,10 @@ export default function CraftManager({ session }) {
 
   const loadCraftList = (saved) => {
     try {
-      setCraftList(JSON.parse(saved.items));
-      setBankResources(JSON.parse(saved.bank || "{}"));
-      setCalculated(null);
+      const items = JSON.parse(saved.items);
+      const bank = JSON.parse(saved.bank || "{}");
+      setCraftList(items);
+      setBankResources(bank);
       showToast(saved.name + " chargée ✓");
     } catch (e) { showToast("Erreur lors du chargement", "error"); }
   };
@@ -290,9 +287,9 @@ export default function CraftManager({ session }) {
     showToast("Renommée ✓");
   };
 
-  // ✅ isCraftable = simplement vérifier que subtype === "equipment"
   const renderIngredient = (ing, i, parentQty, depth) => {
     if (depth === undefined) depth = 0;
+    // ✅ subtype est stocké directement dans l'ingrédient
     const isCraftable = ing.subtype === "equipment";
     const isExpanded = !!expandedIngredients[ing.id];
     const isLoadingSub = !!loadingSubRecipe[ing.id];
@@ -414,10 +411,7 @@ export default function CraftManager({ session }) {
                 </div>
               )}
               {craftList.length > 0 && (
-                <div style={{display:"flex",gap:8,marginTop:14}}>
-                  <button onClick={calculate} style={{flex:2,padding:"11px",borderRadius:11,border:"none",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>⚗️ Calculer les ressources</button>
-                  <button onClick={openSaveModal} style={{flex:1,padding:"11px",borderRadius:11,border:"1px solid rgba(99,102,241,0.2)",background:"rgba(99,102,241,0.08)",color:"#818cf8",fontWeight:600,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>💾 Sauver</button>
-                </div>
+                <button onClick={openSaveModal} style={{width:"100%",marginTop:14,padding:"11px",borderRadius:11,border:"1px solid rgba(99,102,241,0.2)",background:"rgba(99,102,241,0.08)",color:"#818cf8",fontWeight:600,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>💾 Sauver la liste</button>
               )}
             </div>
           </div>
@@ -446,26 +440,30 @@ export default function CraftManager({ session }) {
               </div>
             )}
 
-            {calculated && (
+            {calculated && calculated.length > 0 && (
               <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:16,padding:20,flex:1}}>
                 <div style={{fontSize:12,color:"#6366f1",letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700}}>🧮 Ressources nécessaires ({calculated.length})</div>
-                <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Indique tes ressources en banque pour voir ce qu'il manque</div>
+                <div style={{marginBottom:14,padding:"10px 14px",background:"rgba(99,102,241,0.06)",borderRadius:10,border:"1px solid rgba(99,102,241,0.15)",fontSize:12,color:"#818cf8"}}>💡 Indique tes ressources en banque — le calcul se met à jour automatiquement</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:400,overflowY:"auto"}}>
                   {calculated.map(function(r,i) {
                     const isInList = craftList.some(function(c){ return (c.item.ankama_id || c.item.id) === r.id; });
+                    const isCraftableRes = r.subtype === "equipment";
                     return (
                       <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:r.missing===0?"rgba(34,197,94,0.05)":"rgba(255,255,255,0.02)",borderRadius:9,border:"1px solid "+(r.missing===0?"rgba(34,197,94,0.15)":"rgba(255,255,255,0.04)")}}>
                         {r.img && <img src={r.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
                         <div style={{flex:1,fontSize:13,color:"#cbd5e1"}}>{ingName(r)}</div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          {r.subtype === "equipment" && (
+                          {isCraftableRes && (
                             <button onClick={function(){ addIngredientToCraft(r); }}
                               style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                               {isInList ? "✓" : "⚗️ Crafter"}
                             </button>
                           )}
                           <input type="number" min={0} value={bankResources[r.id]||""} placeholder="Banque"
-                            onChange={function(e){setBankResources(function(prev){var next=Object.assign({},prev);next[r.id]=parseInt(e.target.value)||0;return next;});}}
+                            onChange={function(e){
+                              const val = parseInt(e.target.value) || 0;
+                              setBankResources(function(prev){ return Object.assign({}, prev, { [r.id]: val }); });
+                            }}
                             style={{width:64,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#94a3b8",fontSize:12,outline:"none",fontFamily:"inherit",textAlign:"center"}} />
                           <div style={{minWidth:60,textAlign:"right"}}>
                             <span style={{fontWeight:700,color:r.missing===0?"#22c55e":"#f87171",fontSize:14}}>{r.missing===0?"✓":"-"+r.missing}</span>
@@ -476,7 +474,6 @@ export default function CraftManager({ session }) {
                     );
                   })}
                 </div>
-                <button onClick={calculate} style={{width:"100%",marginTop:12,padding:"10px",borderRadius:10,border:"none",background:"rgba(99,102,241,0.15)",color:"#818cf8",fontWeight:600,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>🔄 Recalculer avec la banque</button>
               </div>
             )}
 
