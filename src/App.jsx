@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import CraftManager from "./CraftManager.jsx";
+import BuildCreator from "./BuildCreator.jsx";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -670,6 +671,7 @@ export default function App() {
   const MAIN_TABS = [
     {id:"persos",   icon:"⚔️", label:"Personnages"},
     {id:"craft",    icon:"⚗️", label:"Craft Manager"},
+    {id:"build",    icon:"🧪", label:"Créateur de Build"},
     {id:"partages", icon:"🔗", label:"Partages", badge:shareCount},
     {id:"webhooks", icon:"🔔", label:"Webhooks"},
   ];
@@ -721,6 +723,7 @@ export default function App() {
       </div>
 
       {mainTab==="craft"    && <CraftManager session={session} />}
+      {mainTab==="build"    && <BuildCreator />}
       {mainTab==="partages" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><PartagesTab session={session} characters={characters} showToast={showToast} /></div>}
       {mainTab==="webhooks" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><WebhooksTab session={session} /></div>}
 
