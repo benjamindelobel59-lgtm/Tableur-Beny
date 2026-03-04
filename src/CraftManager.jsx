@@ -82,13 +82,7 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  // ✅ CORRIGÉ : vérifie toujours l'endpoint equipment pour détecter une recette
   const fetchIngredient = async (ingId) => {
-    let name = "";
-    let img = null;
-    let fullItem = null;
-
-    // 1. Cherche le nom/image dans resources, equipment, consumables
     const urls = [
       API + "/items/resources/" + ingId,
       API + "/items/equipment/" + ingId,
@@ -99,32 +93,11 @@ export default function CraftManager({ session }) {
         const r = await fetch(url);
         if (r.ok) {
           const d = await r.json();
-          name = d.name || "";
-          img = (d.image_urls && d.image_urls.icon) || null;
-          fullItem = d;
-          break;
+          return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
         }
       } catch (_) {}
     }
-
-    // 2. Vérifie TOUJOURS l'endpoint equipment pour voir s'il a une recette
-    //    (un item peut être trouvé via /resources/ mais avoir une recette dans /equipment/)
-    if (!fullItem || !fullItem.recipe || fullItem.recipe.length === 0) {
-      try {
-        const r = await fetch(API + "/items/equipment/" + ingId);
-        if (r.ok) {
-          const d = await r.json();
-          if (d.recipe && d.recipe.length > 0) {
-            // L'item est craftable ! On garde le fullItem de l'equipment
-            fullItem = d;
-            if (!name) name = d.name || "";
-            if (!img) img = (d.image_urls && d.image_urls.icon) || null;
-          }
-        }
-      } catch (_) {}
-    }
-
-    return { name, img, fullItem };
+    return { name: "", img: null, fullItem: null };
   };
 
   const fetchRecipe = async (item) => {
@@ -134,10 +107,20 @@ export default function CraftManager({ session }) {
       const res = await fetch(API + "/items/equipment/" + id);
       if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
+
+      // 🔍 DEBUG - envoie-moi ce que tu vois dans la console
+      console.log("RECIPE RAW:", JSON.stringify(data.recipe));
+      console.log("PREMIER ELEMENT:", JSON.stringify(data.recipe && data.recipe[0]));
+
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         const ingredients = await Promise.all(
           data.recipe.map(async function(e) {
+            // 🔍 DEBUG
+            console.log("INGREDIENT ENTRY:", JSON.stringify(e));
+
             const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
+            console.log("ingId extrait:", ingId);
+
             if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
             const details = await fetchIngredient(ingId);
             if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
@@ -342,15 +325,11 @@ export default function CraftManager({ session }) {
           <div style={{fontWeight:700,color:"#818cf8",fontSize:depth===0?14:12}}>x{totalQty}</div>
           {isCraftable && (
             <div style={{display:"flex",gap:4}}>
-              <button
-                onClick={function(e){ e.stopPropagation(); addIngredientToCraft(ing); }}
-                title="Ajouter à la file de craft"
+              <button onClick={function(e){ e.stopPropagation(); addIngredientToCraft(ing); }}
                 style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 {isInList ? "✓" : "⚗️ Crafter"}
               </button>
-              <button
-                onClick={function(e){ e.stopPropagation(); toggleSubRecipe(ing, parentQty); }}
-                title={isExpanded ? "Réduire" : "Voir les sous-ressources"}
+              <button onClick={function(e){ e.stopPropagation(); toggleSubRecipe(ing, parentQty); }}
                 style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 {isLoadingSub ? "⏳" : isExpanded ? "▲" : "▼"}
               </button>
