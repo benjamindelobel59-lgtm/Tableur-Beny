@@ -20,21 +20,33 @@ const CLASS_ICONS = {
   "Forgelance":"/classes/forgelance.png","Osamodas":"/classes/osamodas.png"
 };
 
-const CATEGORIES = [
-  { id:"all",     label:"Tous",         icon:"⚔️", color:"#818cf8", etats:null },
-  { id:"pret",    label:"Prêt",         icon:"✅", color:"#22c55e", etats:["Prêt","À stuff"] },
-  { id:"mort",    label:"Mort",         icon:"💀", color:"#ef4444", etats:["Mort"] },
-  { id:"sagesse", label:"Pano Sagesse", icon:"🟡", color:"#f5c842", etats:["Pano Sagesse"] },
-  { id:"autre",   label:"Autres",       icon:"📋", color:"#94a3b8", etats:["À xp","Check","Métier","Banque"] },
+// ── Sur-catégories (dossiers) ───────────────────────────────────
+const SURCATS = [
+  { id:"all", label:"Tous",  icon:"⚔️", color:"#818cf8" },
+  { id:"PVP", label:"PVP",   icon:"🏆", color:"#f43f5e" },
+  { id:"PVM", label:"PVM",   icon:"🐉", color:"#10b981" },
 ];
 
-const defaultChar = () => ({ compte:"", nom:"", classe:"Iop", level:1, level_max:1, etat:"Prêt", frigost:"Continent" });
+// ── Catégories : chaque état = son propre onglet ───────────────
+const CATEGORIES = [
+  { id:"all",     label:"Tous",        icon:"⚔️", color:"#818cf8", etats:null },
+  { id:"pret",    label:"Prêt",        icon:"✅", color:"#22c55e", etats:["Prêt"] },
+  { id:"astuff",  label:"À stuff",     icon:"🛡️", color:"#86efac", etats:["À stuff"] },
+  { id:"axp",     label:"À xp",        icon:"⭐", color:"#6366f1", etats:["À xp"] },
+  { id:"sagesse", label:"Pano Sagesse",icon:"🟡", color:"#f5c842", etats:["Pano Sagesse"] },
+  { id:"mort",    label:"Mort",        icon:"💀", color:"#ef4444", etats:["Mort"] },
+  { id:"check",   label:"Check",       icon:"🔍", color:"#06b6d4", etats:["Check"] },
+  { id:"metier",  label:"Métier",      icon:"⚒️", color:"#f97316", etats:["Métier"] },
+  { id:"banque",  label:"Banque",      icon:"🏦", color:"#94a3b8", etats:["Banque"] },
+];
+
+const defaultChar = () => ({ compte:"", nom:"", classe:"Iop", level:1, level_max:1, etat:"Prêt", frigost:"Continent", surcat:"PVM" });
 
 function getCatForEtat(etat) {
   for (const cat of CATEGORIES) {
     if (cat.etats && cat.etats.includes(etat)) return cat.id;
   }
-  return "autre";
+  return "all";
 }
 
 // ─── AUTH PAGE ────────────────────────────────────────────────
@@ -72,20 +84,17 @@ function AuthPage({ onAuth }) {
       <div style={{position:"absolute",bottom:-200,right:-100,width:600,height:600,background:"radial-gradient(circle,rgba(139,92,246,0.06) 0%,transparent 70%)",pointerEvents:"none"}} />
 
       <div style={{width:"100%",maxWidth:420,margin:16,position:"relative",zIndex:1}}>
-        {/* Logo */}
         <div style={{textAlign:"center",marginBottom:40}}>
           <div style={{width:60,height:60,borderRadius:16,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 16px",boxShadow:"0 0 40px rgba(99,102,241,0.4)"}}>⚔️</div>
           <div style={{fontWeight:800,fontSize:22,color:"#f1f5f9",letterSpacing:2}}>DOFUS MANAGER</div>
           <div style={{fontSize:11,color:"#6366f1",letterSpacing:4,textTransform:"uppercase",marginTop:4}}>Serveur Héroïque</div>
         </div>
 
-        {/* Card */}
         <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:20,padding:"32px",boxShadow:"0 40px 80px rgba(0,0,0,0.6)"}}>
           <div style={{position:"relative"}}>
             <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,#6366f1,#8b5cf6)",borderRadius:2,marginBottom:24}} />
           </div>
 
-          {/* Toggle */}
           <div style={{display:"flex",background:"rgba(255,255,255,0.03)",borderRadius:12,padding:4,marginBottom:28,marginTop:8}}>
             {["login","register"].map(m => (
               <button key={m} onClick={()=>{setMode(m);setError("");setSuccess("");}} style={{flex:1,padding:"10px",borderRadius:9,border:"none",background:mode===m?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",color:mode===m?"#fff":"#475569",fontWeight:mode===m?700:500,cursor:"pointer",fontFamily:"inherit",fontSize:14,transition:"all 0.2s"}}>
@@ -97,13 +106,11 @@ function AuthPage({ onAuth }) {
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             <div>
               <label style={{display:"block",color:"#334155",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Email</label>
-              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ton@email.com" style={fi}
-                onKeyDown={e=>e.key==="Enter"&&handle()} />
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ton@email.com" style={fi} onKeyDown={e=>e.key==="Enter"&&handle()} />
             </div>
             <div>
               <label style={{display:"block",color:"#334155",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Mot de passe</label>
-              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={fi}
-                onKeyDown={e=>e.key==="Enter"&&handle()} />
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={fi} onKeyDown={e=>e.key==="Enter"&&handle()} />
             </div>
           </div>
 
@@ -130,6 +137,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeSurcat, setActiveSurcat] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [filterCompte, setFilterCompte] = useState("Tous");
@@ -140,7 +148,6 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  // Auth listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session); setAuthLoading(false);
@@ -151,24 +158,23 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load characters when logged in
   useEffect(() => {
     if (session) loadCharacters();
   }, [session]);
 
   const loadCharacters = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("characters")
-      .select("*")
-      .order("created_at", { ascending: true });
+    const { data, error } = await supabase.from("characters").select("*").order("created_at", { ascending: true });
     if (!error && data) setCharacters(data);
     setLoading(false);
   };
 
   const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
   const openAdd = () => { setForm(defaultChar()); setEditingChar(null); setShowForm(true); };
-  const openEdit = (char) => { setForm({ compte:char.compte, nom:char.nom, classe:char.classe, level:char.level, level_max:char.level_max, etat:char.etat, frigost:char.frigost }); setEditingChar(char.id); setShowForm(true); };
+  const openEdit = (char) => {
+    setForm({ compte:char.compte, nom:char.nom, classe:char.classe, level:char.level, level_max:char.level_max, etat:char.etat, frigost:char.frigost, surcat:char.surcat||"PVM" });
+    setEditingChar(char.id); setShowForm(true);
+  };
 
   const handleSubmit = async () => {
     if (!form.nom.trim()) return showToast("Le nom est requis !","error");
@@ -200,9 +206,14 @@ export default function App() {
     showToast(`Déplacé → "${CATEGORIES.find(c=>c.id===newCat)?.label}" ✓`);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleSurcatChange = async (id, surcat) => {
+    const { error } = await supabase.from("characters").update({ surcat }).eq("id", id);
+    if (error) return;
+    setCharacters(characters.map(c=>c.id===id?{...c,surcat}:c));
+    showToast(`Dossier → ${surcat} ✓`);
   };
+
+  const handleLogout = async () => { await supabase.auth.signOut(); };
 
   if (authLoading) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#07080f",color:"#818cf8",fontSize:20,fontFamily:"'Segoe UI',sans-serif"}}>
@@ -214,11 +225,15 @@ export default function App() {
 
   const comptes = ["Tous",...Array.from(new Set(characters.map(c=>c.compte).filter(Boolean)))];
 
+  // Filtre complet : surcat + onglet état + search + compte
   const filtered = characters.filter(c => {
+    const inSurcat = activeSurcat==="all" || (c.surcat||"PVM")===activeSurcat;
     const cat = CATEGORIES.find(cat=>cat.id===activeTab);
     const inTab = activeTab==="all" || (cat?.etats && cat.etats.includes(c.etat));
     const s = search.toLowerCase();
-    return inTab && (c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s)) && (filterCompte==="Tous"||c.compte===filterCompte);
+    const inSearch = c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s);
+    const inCompte = filterCompte==="Tous"||c.compte===filterCompte;
+    return inSurcat && inTab && inSearch && inCompte;
   }).sort((a,b) => {
     if (sortBy==="compte") return (a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");
     if (sortBy==="level") return b.level-a.level;
@@ -226,7 +241,13 @@ export default function App() {
     return (a.classe||"").localeCompare(b.classe||"");
   });
 
-  const countFor = (cat) => cat.etats ? characters.filter(c=>cat.etats.includes(c.etat)).length : characters.length;
+  // countFor respecte la surcat active
+  const countFor = (cat) => {
+    const base = activeSurcat==="all" ? characters : characters.filter(c=>(c.surcat||"PVM")===activeSurcat);
+    return cat.etats ? base.filter(c=>cat.etats.includes(c.etat)).length : base.length;
+  };
+  const countSurcat = (sc) => sc.id==="all" ? characters.length : characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
+
   const fi = { width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
 
   return (
@@ -248,7 +269,12 @@ export default function App() {
             </div>
           </div>
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-            {[{l:"Total",v:characters.length,c:"#818cf8"},{l:"Prêts",v:countFor(CATEGORIES[1]),c:"#22c55e"},{l:"Morts",v:countFor(CATEGORIES[2]),c:"#ef4444"},{l:"Frigost 2",v:characters.filter(c=>c.frigost==="Frigost 2").length,c:"#a78bfa"}].map(s=>(
+            {[
+              {l:"Total",v:characters.length,c:"#818cf8"},
+              {l:"PVP",v:characters.filter(c=>(c.surcat||"PVM")==="PVP").length,c:"#f43f5e"},
+              {l:"PVM",v:characters.filter(c=>(c.surcat||"PVM")==="PVM").length,c:"#10b981"},
+              {l:"Morts",v:characters.filter(c=>c.etat==="Mort").length,c:"#ef4444"},
+            ].map(s=>(
               <div key={s.l} style={{textAlign:"center",padding:"5px 14px",background:"rgba(255,255,255,0.03)",border:`1px solid ${s.c}20`,borderRadius:8}}>
                 <div style={{fontSize:17,fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
                 <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:1,marginTop:2}}>{s.l}</div>
@@ -264,7 +290,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* MAIN TABS */}
+      {/* MAIN TABS (Personnages / Craft) */}
       <div style={{position:"relative",zIndex:9,borderBottom:"1px solid rgba(99,102,241,0.1)",background:"rgba(7,8,15,0.95)",backdropFilter:"blur(20px)"}}>
         <div style={{maxWidth:1400,margin:"0 auto",padding:"0 28px",display:"flex",gap:4}}>
           {[{id:"persos",icon:"⚔️",label:"Personnages"},{id:"craft",icon:"⚗️",label:"Craft Manager"}].map(t=>(
@@ -277,16 +303,54 @@ export default function App() {
 
       {mainTab==="craft" && <CraftManager session={session} />}
 
-      <div style={{maxWidth:1400,margin:'0 auto',display:mainTab==="persos"?"block":"none",padding:'26px 28px',position:'relative',zIndex:1}}>
-        {/* TABS */}
-        <div style={{display:"flex",gap:8,marginBottom:22,flexWrap:"wrap"}}>
-          {CATEGORIES.map(cat => {
-            const cnt = countFor(cat); const active = activeTab===cat.id;
-            return <button key={cat.id} onClick={()=>setActiveTab(cat.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:12,border:`1px solid ${active?cat.color:"rgba(255,255,255,0.06)"}`,background:active?`${cat.color}15`:"rgba(255,255,255,0.02)",color:active?cat.color:"#64748b",cursor:"pointer",fontWeight:active?700:500,fontSize:14,transition:"all 0.2s",boxShadow:active?`0 0 24px ${cat.color}18`:"none",fontFamily:"inherit"}}>
-              <span>{cat.icon}</span><span>{cat.label}</span>
-              <span style={{background:active?`${cat.color}28`:"rgba(255,255,255,0.05)",color:active?cat.color:"#475569",borderRadius:20,padding:"1px 8px",fontSize:12,fontWeight:700}}>{cnt}</span>
-            </button>;
-          })}
+      <div style={{maxWidth:1400,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"26px 28px",position:"relative",zIndex:1}}>
+
+        {/* ── SUR-CATÉGORIES (PVP / PVM) ── */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:10,color:"#334155",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>📁 Dossier</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {SURCATS.map(sc => {
+              const cnt = countSurcat(sc);
+              const active = activeSurcat===sc.id;
+              return (
+                <button key={sc.id} onClick={()=>{ setActiveSurcat(sc.id); setActiveTab("all"); }}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:12,
+                    border:`1px solid ${active?sc.color:"rgba(255,255,255,0.06)"}`,
+                    background:active?`${sc.color}18`:"rgba(255,255,255,0.02)",
+                    color:active?sc.color:"#64748b",cursor:"pointer",fontWeight:active?700:500,
+                    fontSize:14,transition:"all 0.2s",
+                    boxShadow:active?`0 0 28px ${sc.color}22`:"none",fontFamily:"inherit"}}>
+                  <span>{sc.icon}</span>
+                  <span>{sc.label}</span>
+                  <span style={{background:active?`${sc.color}28`:"rgba(255,255,255,0.05)",color:active?sc.color:"#475569",borderRadius:20,padding:"1px 8px",fontSize:12,fontWeight:700}}>{cnt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── CATÉGORIES (un onglet par état) ── */}
+        <div style={{marginBottom:22}}>
+          <div style={{fontSize:10,color:"#334155",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>🗂️ État</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {CATEGORIES.map(cat => {
+              const cnt = countFor(cat);
+              const active = activeTab===cat.id;
+              return (
+                <button key={cat.id} onClick={()=>setActiveTab(cat.id)}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:12,
+                    border:`1px solid ${active?cat.color:"rgba(255,255,255,0.06)"}`,
+                    background:active?`${cat.color}15`:"rgba(255,255,255,0.02)",
+                    color:active?cat.color:"#64748b",cursor:"pointer",fontWeight:active?700:500,
+                    fontSize:14,transition:"all 0.2s",
+                    boxShadow:active?`0 0 24px ${cat.color}18`:"none",fontFamily:"inherit"}}>
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span style={{background:active?`${cat.color}28`:"rgba(255,255,255,0.05)",color:active?cat.color:"#475569",borderRadius:20,padding:"1px 8px",fontSize:12,fontWeight:700}}>{cnt}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* FILTERS */}
@@ -297,8 +361,10 @@ export default function App() {
           </div>
           <select value={filterCompte} onChange={e=>setFilterCompte(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}>{comptes.map(c=><option key={c}>{c}</option>)}</select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}>
-            <option value="compte">Trier: Compte</option><option value="nom">Trier: Nom</option>
-            <option value="level">Trier: Level</option><option value="classe">Trier: Classe</option>
+            <option value="compte">Trier: Compte</option>
+            <option value="nom">Trier: Nom</option>
+            <option value="level">Trier: Level</option>
+            <option value="classe">Trier: Classe</option>
           </select>
         </div>
 
@@ -318,15 +384,22 @@ export default function App() {
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(330px,1fr))",gap:14}}>
             {filtered.map((char)=>{
               const catColor = CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||"#818cf8";
+              const sc = SURCATS.find(s=>s.id===(char.surcat||"PVM"))||SURCATS[2];
               return (
                 <div key={char.id} style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:16,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}}>
                   <div style={{height:2,background:`linear-gradient(90deg,${catColor},${catColor}60)`}} />
                   <div style={{padding:"16px"}}>
                     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:13}}>
                       <div style={{display:"flex",alignItems:"center",gap:11}}>
-                        <div style={{width:44,height:44,borderRadius:12,background:`${catColor}12`,border:`1px solid ${catColor}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}><img src={CLASS_ICONS[char.classe]} style={{width:36,height:36,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"} /></div>
+                        <div style={{width:44,height:44,borderRadius:12,background:`${catColor}12`,border:`1px solid ${catColor}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>
+                          <img src={CLASS_ICONS[char.classe]} style={{width:36,height:36,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"} />
+                        </div>
                         <div>
-                          <div style={{fontWeight:700,fontSize:15,color:"#f1f5f9",lineHeight:1.2}}>{char.nom}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div style={{fontWeight:700,fontSize:15,color:"#f1f5f9",lineHeight:1.2}}>{char.nom}</div>
+                            {/* Badge PVP / PVM */}
+                            <span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:20,background:`${sc.color}18`,color:sc.color,border:`1px solid ${sc.color}30`,letterSpacing:0.5}}>{sc.icon} {sc.label}</span>
+                          </div>
                           <div style={{fontSize:12,color:"#475569",marginTop:3}}>{char.compte||<span style={{color:"#1e293b",fontStyle:"italic"}}>Sans compte</span>}</div>
                         </div>
                       </div>
@@ -347,6 +420,12 @@ export default function App() {
                       <select value={char.etat} onChange={e=>handleEtatChange(char.id,e.target.value)}
                         style={{flex:1,background:`${ETAT_COLORS[char.etat]}15`,border:`1px solid ${ETAT_COLORS[char.etat]}38`,borderRadius:9,padding:"7px 10px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:12,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
                         {ETATS.map(e=><option key={e}>{e}</option>)}
+                      </select>
+                      {/* Switcher PVP/PVM rapide */}
+                      <select value={char.surcat||"PVM"} onChange={e=>handleSurcatChange(char.id,e.target.value)}
+                        style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,padding:"7px 10px",color:"#e2e8f0",fontWeight:700,fontSize:12,outline:"none",fontFamily:"inherit",cursor:"pointer"}}>
+                        <option value="PVM">🐉 PVM</option>
+                        <option value="PVP">🏆 PVP</option>
                       </select>
                       <div style={{background:char.frigost==="Frigost 2"?"rgba(167,139,250,0.1)":"rgba(71,85,105,0.07)",border:`1px solid ${char.frigost==="Frigost 2"?"rgba(167,139,250,0.22)":"rgba(71,85,105,0.15)"}`,borderRadius:9,padding:"7px 11px",fontSize:12,color:char.frigost==="Frigost 2"?"#c4b5fd":"#475569",fontWeight:600,whiteSpace:"nowrap"}}>
                         {char.frigost==="Frigost 2"?"❄️ F2":"🌍 Cont."}
@@ -371,6 +450,25 @@ export default function App() {
               <span>{editingChar?"✏️":"⚔️"}</span>{editingChar?"Modifier":"Nouveau personnage"}
             </h2>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
+
+              {/* Sur-catégorie PVP / PVM */}
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{display:"block",color:"#334155",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:7}}>📁 Dossier</label>
+                <div style={{display:"flex",gap:10}}>
+                  {[{id:"PVM",icon:"🐉",color:"#10b981"},{id:"PVP",icon:"🏆",color:"#f43f5e"}].map(s=>(
+                    <button key={s.id} onClick={()=>setForm(p=>({...p,surcat:s.id}))}
+                      style={{flex:1,padding:"13px",borderRadius:11,
+                        border:`2px solid ${form.surcat===s.id?s.color:"rgba(255,255,255,0.06)"}`,
+                        background:form.surcat===s.id?`${s.color}15`:"rgba(255,255,255,0.02)",
+                        color:form.surcat===s.id?s.color:"#334155",
+                        cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:700,transition:"all 0.2s",
+                        boxShadow:form.surcat===s.id?`0 0 20px ${s.color}22`:"none"}}>
+                      {s.icon} {s.id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {[{col:"1/-1",label:"Nom du compte",key:"compte",ph:"ex: MonCompte1"},{col:"1/-1",label:"Nom du personnage *",key:"nom",ph:"ex: Darkblade"}].map(f=>(
                 <div key={f.key} style={{gridColumn:f.col}}>
                   <label style={{display:"block",color:"#334155",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{f.label}</label>
