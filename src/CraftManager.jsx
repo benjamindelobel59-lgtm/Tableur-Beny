@@ -82,12 +82,22 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
-  const fetchIngredient = async (ingId) => {
-    const urls = [
-      API + "/items/resources/" + ingId,
-      API + "/items/equipment/" + ingId,
-      API + "/items/consumables/" + ingId,
-    ];
+  // ✅ CORRIGÉ : utilise item_subtype pour appeler le bon endpoint directement
+  const fetchIngredient = async (ingId, subtype) => {
+    // Détermine l'ordre des URLs selon le subtype
+    let urls = [];
+    if (subtype === "equipment") {
+      urls = [API + "/items/equipment/" + ingId];
+    } else if (subtype === "resources") {
+      urls = [API + "/items/resources/" + ingId];
+    } else {
+      urls = [
+        API + "/items/resources/" + ingId,
+        API + "/items/equipment/" + ingId,
+        API + "/items/consumables/" + ingId,
+      ];
+    }
+
     for (const url of urls) {
       try {
         const r = await fetch(url);
@@ -100,6 +110,22 @@ export default function CraftManager({ session }) {
     return { name: "", img: null, fullItem: null };
   };
 
+  const parseRecipeIngredients = async (recipe, setCraftable) => {
+    return Promise.all(
+      recipe.map(async function(e) {
+        const ingId = e.item_ankama_id;
+        const subtype = e.item_subtype || "";
+        if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1, subtype: "" };
+        const details = await fetchIngredient(ingId, subtype);
+        // ✅ Si subtype === "equipment", c'est forcément craftable
+        if (subtype === "equipment" && details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
+          if (setCraftable) setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
+        }
+        return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1, subtype };
+      })
+    );
+  };
+
   const fetchRecipe = async (item) => {
     setLoadingRecipe(true);
     try {
@@ -107,28 +133,8 @@ export default function CraftManager({ session }) {
       const res = await fetch(API + "/items/equipment/" + id);
       if (!res.ok) throw new Error("Item introuvable");
       const data = await res.json();
-
-      // 🔍 DEBUG - envoie-moi ce que tu vois dans la console
-      console.log("RECIPE RAW:", JSON.stringify(data.recipe));
-      console.log("PREMIER ELEMENT:", JSON.stringify(data.recipe && data.recipe[0]));
-
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
-        const ingredients = await Promise.all(
-          data.recipe.map(async function(e) {
-            // 🔍 DEBUG
-            console.log("INGREDIENT ENTRY:", JSON.stringify(e));
-
-            const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
-            console.log("ingId extrait:", ingId);
-
-            if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
-            const details = await fetchIngredient(ingId);
-            if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
-              setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
-            }
-            return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
-          })
-        );
+        const ingredients = await parseRecipeIngredients(data.recipe, true);
         return { ingredients };
       }
       return null;
@@ -150,17 +156,7 @@ export default function CraftManager({ session }) {
     try {
       const fullItem = craftableIds[key];
       if (!fullItem || !fullItem.recipe) return;
-      const subIngredients = await Promise.all(
-        fullItem.recipe.map(async function(e) {
-          const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
-          if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
-          const details = await fetchIngredient(ingId);
-          if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
-            setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
-          }
-          return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
-        })
-      );
+      const subIngredients = await parseRecipeIngredients(fullItem.recipe, true);
       setSubRecipes(function(prev) { return Object.assign({}, prev, { [key]: subIngredients }); });
       setExpandedIngredients(function(prev) { return Object.assign({}, prev, { [key]: true }); });
     } finally {
@@ -179,7 +175,7 @@ export default function CraftManager({ session }) {
     }
     let fullItem = craftableIds[ing.id] || null;
     if (!fullItem) {
-      const details = await fetchIngredient(ing.id);
+      const details = await fetchIngredient(ing.id, ing.subtype || "equipment");
       fullItem = details.fullItem;
     }
     if (!fullItem || !fullItem.recipe || fullItem.recipe.length === 0) {
@@ -187,17 +183,7 @@ export default function CraftManager({ session }) {
     }
     setLoadingRecipe(true);
     try {
-      const ingredients = await Promise.all(
-        fullItem.recipe.map(async function(e) {
-          const ingId = e.item_ankama_id || e.ankama_id || e.id || (e.item && (e.item.ankama_id || e.item.id));
-          if (!ingId) return { id: Math.random(), name: "?", img: null, quantity: e.quantity || 1 };
-          const details = await fetchIngredient(ingId);
-          if (details.fullItem && details.fullItem.recipe && details.fullItem.recipe.length > 0) {
-            setCraftableIds(function(prev) { return Object.assign({}, prev, { [ingId]: details.fullItem }); });
-          }
-          return { id: ingId, name: details.name, img: details.img, quantity: e.quantity || 1 };
-        })
-      );
+      const ingredients = await parseRecipeIngredients(fullItem.recipe, true);
       const itemWithRecipe = Object.assign({}, fullItem, { recipe: { ingredients } });
       setCraftList(function(prev) { return prev.concat([{ item: itemWithRecipe, qty: 1 }]); });
       showToast(getName(fullItem) + " ajouté ✓");
