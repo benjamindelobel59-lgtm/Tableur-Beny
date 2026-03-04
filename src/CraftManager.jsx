@@ -20,6 +20,10 @@ export default function CraftManager({ session }) {
   const [toast, setToast] = useState(null);
   const [loadingRecipe, setLoadingRecipe] = useState(false);
   const [filterLevel, setFilterLevel] = useState("all");
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
   const searchTimeout = useRef(null);
 
   const showToast = (msg, type = "success") => {
@@ -96,7 +100,6 @@ export default function CraftManager({ session }) {
     return { name: "", img: null };
   };
 
-  // ✅ CORRIGÉ : on log la recette brute pour trouver la bonne clé d'ID
   const fetchRecipe = async (item) => {
     setLoadingRecipe(true);
     try {
@@ -110,7 +113,6 @@ export default function CraftManager({ session }) {
       if (data.recipe && Array.isArray(data.recipe) && data.recipe.length > 0) {
         const ingredients = await Promise.all(
           data.recipe.map(async function(e) {
-            // Essaye toutes les clés possibles pour l'ID
             const ingId =
               e.item_ankama_id ||
               e.ankama_id ||
@@ -199,16 +201,23 @@ export default function CraftManager({ session }) {
     setCalculated(result);
   };
 
-  const saveCraftList = async () => {
+  const openSaveModal = () => {
     if (craftList.length === 0) return showToast("La liste est vide !", "error");
-    const name = "Craft du " + new Date().toLocaleDateString("fr-FR");
+    setSaveName("Craft du " + new Date().toLocaleDateString("fr-FR"));
+    setShowSaveModal(true);
+  };
+
+  const confirmSave = async () => {
+    const name = saveName.trim() || "Craft du " + new Date().toLocaleDateString("fr-FR");
     const { error } = await supabase.from("craft_lists").insert([{
       user_id: session.user.id, name: name,
       items: JSON.stringify(craftList), bank: JSON.stringify(bankResources),
     }]);
     if (error) return showToast("Erreur de sauvegarde", "error");
+    setShowSaveModal(false);
+    setSaveName("");
     await loadSavedCrafts();
-    showToast("Liste sauvegardée ✓");
+    showToast("\"" + name + "\" sauvegardée ✓");
   };
 
   const loadCraftList = (saved) => {
@@ -224,6 +233,17 @@ export default function CraftManager({ session }) {
     await supabase.from("craft_lists").delete().eq("id", id);
     await loadSavedCrafts();
     showToast("Liste supprimée");
+  };
+
+  const confirmRename = async (id) => {
+    const name = renameValue.trim();
+    if (!name) return;
+    const { error } = await supabase.from("craft_lists").update({ name }).eq("id", id);
+    if (error) return showToast("Erreur de renommage", "error");
+    setRenamingId(null);
+    setRenameValue("");
+    await loadSavedCrafts();
+    showToast("Renommée ✓");
   };
 
   const fi = { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", color:"#e2e8f0", fontSize:14, outline:"none", fontFamily:"inherit", boxSizing:"border-box" };
@@ -313,7 +333,7 @@ export default function CraftManager({ session }) {
               {craftList.length > 0 && (
                 <div style={{display:"flex",gap:8,marginTop:14}}>
                   <button onClick={calculate} style={{flex:2,padding:"11px",borderRadius:11,border:"none",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>⚗️ Calculer les ressources</button>
-                  <button onClick={saveCraftList} style={{flex:1,padding:"11px",borderRadius:11,border:"1px solid rgba(99,102,241,0.2)",background:"rgba(99,102,241,0.08)",color:"#818cf8",fontWeight:600,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>💾 Sauver</button>
+                  <button onClick={openSaveModal} style={{flex:1,padding:"11px",borderRadius:11,border:"1px solid rgba(99,102,241,0.2)",background:"rgba(99,102,241,0.08)",color:"#818cf8",fontWeight:600,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>💾 Sauver</button>
                 </div>
               )}
             </div>
@@ -380,13 +400,34 @@ export default function CraftManager({ session }) {
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {savedCrafts.map(function(s) {
                     return (
-                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.05)"}}>
+                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.05)"}}>
                         <div style={{flex:1}}>
-                          <div style={{fontWeight:600,fontSize:13,color:"#f1f5f9"}}>{s.name}</div>
-                          <div style={{fontSize:11,color:"#475569"}}>{JSON.parse(s.items||"[]").length} items</div>
+                          {renamingId === s.id ? (
+                            <div style={{display:"flex",gap:6}}>
+                              <input
+                                value={renameValue}
+                                onChange={function(e){setRenameValue(e.target.value);}}
+                                onKeyDown={function(e){if(e.key==="Enter")confirmRename(s.id);if(e.key==="Escape"){setRenamingId(null);setRenameValue("");}}}
+                                autoFocus
+                                style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(99,102,241,0.4)",borderRadius:7,padding:"4px 8px",color:"#f1f5f9",fontSize:12,outline:"none",fontFamily:"inherit"}}
+                              />
+                              <button onClick={function(){confirmRename(s.id);}} style={{background:"rgba(99,102,241,0.2)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:7,padding:"4px 8px",color:"#818cf8",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✓</button>
+                              <button onClick={function(){setRenamingId(null);setRenameValue("");}} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#475569",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕</button>
+                            </div>
+                          ) : (
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{fontWeight:600,fontSize:13,color:"#f1f5f9"}}>{s.name}</div>
+                              <button onClick={function(){setRenamingId(s.id);setRenameValue(s.name);}} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:12,padding:"2px 4px",fontFamily:"inherit"}} title="Renommer">✏️</button>
+                            </div>
+                          )}
+                          <div style={{fontSize:11,color:"#475569",marginTop:2}}>{JSON.parse(s.items||"[]").length} items</div>
                         </div>
-                        <button onClick={function(){loadCraftList(s);}} style={{background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:7,padding:"5px 10px",color:"#818cf8",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Charger</button>
-                        <button onClick={function(){deleteSaved(s.id);}} style={{background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:7,padding:"5px 10px",color:"#f87171",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕</button>
+                        {renamingId !== s.id && (
+                          <>
+                            <button onClick={function(){loadCraftList(s);}} style={{background:"rgba(99,102,241,0.1)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:7,padding:"5px 10px",color:"#818cf8",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Charger</button>
+                            <button onClick={function(){deleteSaved(s.id);}} style={{background:"rgba(239,68,68,0.07)",border:"1px solid rgba(239,68,68,0.15)",borderRadius:7,padding:"5px 10px",color:"#f87171",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>✕</button>
+                          </>
+                        )}
                       </div>
                     );
                   })}
@@ -396,6 +437,28 @@ export default function CraftManager({ session }) {
           </div>
         </div>
       </div>
+
+      {/* MODAL SAUVEGARDE */}
+      {showSaveModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={function(e){if(e.target===e.currentTarget){setShowSaveModal(false);}}}>
+          <div style={{background:"#0d0f1a",border:"1px solid rgba(99,102,241,0.3)",borderRadius:16,padding:28,width:360,boxShadow:"0 20px 60px rgba(0,0,0,0.8)"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#f1f5f9",marginBottom:16}}>💾 Nommer la liste</div>
+            <input
+              value={saveName}
+              onChange={function(e){setSaveName(e.target.value);}}
+              onKeyDown={function(e){if(e.key==="Enter")confirmSave();if(e.key==="Escape")setShowSaveModal(false);}}
+              autoFocus
+              placeholder="ex: Pano feu entière, Set Bouftou..."
+              style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(99,102,241,0.3)",borderRadius:10,padding:"10px 14px",color:"#f1f5f9",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box",marginBottom:16}}
+            />
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={confirmSave} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Sauvegarder</button>
+              <button onClick={function(){setShowSaveModal(false);}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",color:"#94a3b8",cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div style={{position:"fixed",bottom:26,right:26,background:toast.type==="error"?"linear-gradient(135deg,#ef4444,#dc2626)":"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",padding:"12px 20px",borderRadius:12,fontWeight:600,fontSize:14,boxShadow:"0 10px 40px rgba(0,0,0,0.5)",zIndex:200,fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}}>
