@@ -82,7 +82,13 @@ export default function CraftManager({ session }) {
     return () => clearTimeout(searchTimeout.current);
   }, [search, searchItems]);
 
+  // ✅ CORRIGÉ : vérifie toujours l'endpoint equipment pour détecter une recette
   const fetchIngredient = async (ingId) => {
+    let name = "";
+    let img = null;
+    let fullItem = null;
+
+    // 1. Cherche le nom/image dans resources, equipment, consumables
     const urls = [
       API + "/items/resources/" + ingId,
       API + "/items/equipment/" + ingId,
@@ -93,11 +99,32 @@ export default function CraftManager({ session }) {
         const r = await fetch(url);
         if (r.ok) {
           const d = await r.json();
-          return { name: d.name || "", img: (d.image_urls && d.image_urls.icon) || null, fullItem: d };
+          name = d.name || "";
+          img = (d.image_urls && d.image_urls.icon) || null;
+          fullItem = d;
+          break;
         }
       } catch (_) {}
     }
-    return { name: "", img: null, fullItem: null };
+
+    // 2. Vérifie TOUJOURS l'endpoint equipment pour voir s'il a une recette
+    //    (un item peut être trouvé via /resources/ mais avoir une recette dans /equipment/)
+    if (!fullItem || !fullItem.recipe || fullItem.recipe.length === 0) {
+      try {
+        const r = await fetch(API + "/items/equipment/" + ingId);
+        if (r.ok) {
+          const d = await r.json();
+          if (d.recipe && d.recipe.length > 0) {
+            // L'item est craftable ! On garde le fullItem de l'equipment
+            fullItem = d;
+            if (!name) name = d.name || "";
+            if (!img) img = (d.image_urls && d.image_urls.icon) || null;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return { name, img, fullItem };
   };
 
   const fetchRecipe = async (item) => {
@@ -158,7 +185,6 @@ export default function CraftManager({ session }) {
     }
   };
 
-  // Ajoute un ingrédient craftable directement à la file
   const addIngredientToCraft = async (ing) => {
     const existing = craftList.find(function(c) { return (c.item.ankama_id || c.item.id) === ing.id; });
     if (existing) {
@@ -309,33 +335,30 @@ export default function CraftManager({ session }) {
     const totalQty = ing.quantity * (parentQty || 1);
 
     return (
-      <div key={ing.id + "-" + i + "-" + depth} style={{marginLeft: depth * 20}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:depth===0?"rgba(255,255,255,0.02)":"rgba(99,102,241,0.04)",borderRadius:9,border:"1px solid "+(depth===0?"rgba(255,255,255,0.04)":"rgba(99,102,241,0.1)"),marginBottom:4}}>
-          {depth > 0 && <div style={{color:"#6366f1",fontSize:11}}>└</div>}
-          {ing.img && <img src={ing.img} style={{width:28,height:28,objectFit:"contain",borderRadius:6}} alt="" onError={function(e){e.target.style.display="none";}} />}
-          <div style={{flex:1,fontSize:13,color:depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
-          <div style={{fontWeight:700,color:"#818cf8",fontSize:14}}>x{totalQty}</div>
+      <div key={ing.id + "-" + i + "-" + depth}>
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",marginLeft:depth*20,background:depth===0?"rgba(255,255,255,0.02)":depth===1?"rgba(99,102,241,0.05)":"rgba(99,102,241,0.08)",borderRadius:9,border:"1px solid "+(depth===0?"rgba(255,255,255,0.04)":"rgba(99,102,241,0.12)"),marginBottom:4,borderLeft:depth>0?"2px solid rgba(99,102,241,0.3)":"1px solid rgba(255,255,255,0.04)"}}>
+          {ing.img && <img src={ing.img} style={{width:depth===0?28:24,height:depth===0?28:24,objectFit:"contain",borderRadius:6,flexShrink:0}} alt="" onError={function(e){e.target.style.display="none";}} />}
+          <div style={{flex:1,fontSize:depth===0?13:12,color:depth===0?"#cbd5e1":"#94a3b8"}}>{ingName(ing)}</div>
+          <div style={{fontWeight:700,color:"#818cf8",fontSize:depth===0?14:12}}>x{totalQty}</div>
           {isCraftable && (
             <div style={{display:"flex",gap:4}}>
-              {/* ✅ Bouton Crafter : ajoute à la file */}
               <button
                 onClick={function(e){ e.stopPropagation(); addIngredientToCraft(ing); }}
                 title="Ajouter à la file de craft"
                 style={{background:isInList?"rgba(34,197,94,0.1)":"rgba(99,102,241,0.15)",border:"1px solid "+(isInList?"rgba(34,197,94,0.3)":"rgba(99,102,241,0.3)"),borderRadius:7,padding:"3px 8px",color:isInList?"#22c55e":"#818cf8",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 {isInList ? "✓" : "⚗️ Crafter"}
               </button>
-              {/* ✅ Bouton Détails : affiche la cascade */}
               <button
                 onClick={function(e){ e.stopPropagation(); toggleSubRecipe(ing, parentQty); }}
                 title={isExpanded ? "Réduire" : "Voir les sous-ressources"}
-                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                style={{background:isExpanded?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",border:"1px solid "+(isExpanded?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.1)"),borderRadius:7,padding:"3px 8px",color:isExpanded?"#818cf8":"#475569",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 {isLoadingSub ? "⏳" : isExpanded ? "▲" : "▼"}
               </button>
             </div>
           )}
         </div>
         {isExpanded && subIngs && (
-          <div style={{marginBottom:4}}>
+          <div>
             {subIngs.map(function(sub, si) { return renderIngredient(sub, si, totalQty, depth + 1); })}
           </div>
         )}
