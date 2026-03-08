@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import CraftManager from "./CraftManager.jsx";
-import BuildCreator from "./BuildCreator.jsx";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -20,8 +18,6 @@ const T = {
 
 // ─── CODE D'ACCÈS ─────────────────────────────────────────────
 const ACCESS_CODE = "FMX";
-const GATE_KEY    = "tbb_access_granted";
-
 function GatePage({ onSuccess }) {
   const [input, setInput]   = useState("");
   const [error, setError]   = useState(false);
@@ -29,7 +25,6 @@ function GatePage({ onSuccess }) {
 
   const tryCode = () => {
     if (input.trim().toUpperCase() === ACCESS_CODE) {
-      localStorage.setItem(GATE_KEY, "1");
       onSuccess();
     } else {
       setError(true); setShake(true); setInput("");
@@ -585,7 +580,7 @@ function PartagesTab({ session, characters, showToast }) {
 
 // ─── MAIN APP ─────────────────────────────────────────────────
 export default function App() {
-  const [gateOpen,setGateOpen]           = useState(()=>localStorage.getItem(GATE_KEY)==="1");
+  const [gateOpen,setGateOpen]           = useState(false);
   const [session,setSession]             = useState(null);
   const [mainTab,setMainTab]             = useState("persos");
   const [authLoading,setAuthLoading]     = useState(true);
@@ -731,8 +726,6 @@ export default function App() {
 
   const MAIN_TABS = [
     {id:"persos",   icon:"⚔️", label:"Personnages"},
-    {id:"craft",    icon:"⚗️", label:"Craft Manager"},
-    {id:"build",    icon:"🧪", label:"Créateur de Build"},
     {id:"partages", icon:"🔗", label:"Partages", badge:shareCount},
     {id:"webhooks", icon:"🔔", label:"Webhooks"},
   ];
@@ -783,8 +776,6 @@ export default function App() {
         </div>
       </div>
 
-      {mainTab==="craft"    && <CraftManager session={session} />}
-      {mainTab==="build"    && <BuildCreator />}
       {mainTab==="partages" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><PartagesTab session={session} characters={characters} showToast={showToast} /></div>}
       {mainTab==="webhooks" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><WebhooksTab session={session} /></div>}
 
