@@ -278,6 +278,7 @@ function CraftTab({ session }) {
   const [subCraftsEnabled,setSubCraftsEnabled]=useState(()=>{try{return localStorage.getItem(`craft_subcrafts_${session.user.id}`)==="true";}catch{return false;}});
   const [subCraftCache,setSubCraftCache]=useState({});
   const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
+  const [skipSubCraft,setSkipSubCraft]=useState(()=>{try{const r=localStorage.getItem(`craft_skip_${session.user.id}`);return r?JSON.parse(r):{}}catch{return {};}});
   const debounceRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(craftItems));}catch{}},[craftItems]);
   useEffect(()=>{try{localStorage.setItem(lsBanqKey,JSON.stringify(banque));}catch{}},[banque]);
@@ -317,11 +318,13 @@ function CraftTab({ session }) {
     }));
   };
 
-  // ── Flatten sub-craft tree to leaf resources ──
-  const flattenToLeaves=(nodes,map={})=>{
+  // ── Flatten sub-craft tree to leaf resources (respects skip decisions) ──
+  const flattenToLeaves=(nodes,map={},skip={})=>{
     for(const node of nodes){
-      if(node.subRecipe&&node.subRecipe.length>0){flattenToLeaves(node.subRecipe,map);}
-      else{const k=node.ankama_id??node.name;if(!map[k])map[k]={...node,qty:0,key:k};map[k].qty+=node.qty;}
+      const k=node.ankama_id??node.name;
+      const isSkipped=skip[k];
+      if(node.subRecipe&&node.subRecipe.length>0&&!isSkipped){flattenToLeaves(node.subRecipe,map,skip);}
+      else{if(!map[k])map[k]={...node,qty:0,key:k};map[k].qty+=node.qty;}
     }
     return map;
   };
@@ -348,6 +351,7 @@ function CraftTab({ session }) {
 
   // Re-resolve when craftItems change and sub-crafts are enabled
   useEffect(()=>{try{localStorage.setItem(`craft_subcrafts_${session.user.id}`,String(subCraftsEnabled));}catch{}},[subCraftsEnabled]);
+  useEffect(()=>{try{localStorage.setItem(`craft_skip_${session.user.id}`,JSON.stringify(skipSubCraft));}catch{}},[skipSubCraft]);
   useEffect(()=>{if(subCraftsEnabled)resolveAllSubCrafts();},[craftItems]);
 
   const totalIngredients=()=>{
@@ -355,7 +359,7 @@ function CraftTab({ session }) {
       const map={};
       for(const{item}of craftItems){
         const tree=subTrees[item.ankama_id]||[];
-        flattenToLeaves(tree,map);
+        flattenToLeaves(tree,map,skipSubCraft);
       }
       return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
     }
@@ -460,24 +464,36 @@ function CraftTab({ session }) {
                   const inBanque=bv(key);
                   const complete=inBanque>=total;
                   const hasSubCraft=r.subRecipe&&r.subRecipe.length>0;
+                  const isSkipped=skipSubCraft[key]||false;
+                  const showChildren=hasSubCraft&&!isSkipped;
                   return(
                     <div key={i}>
-                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 8px",marginLeft:depth*18,borderLeft:depth>0?"2px solid "+T.accentBorder:"none",marginBottom:2,borderRadius:depth>0?0:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 8px",marginLeft:depth*18,borderLeft:depth>0?"2px solid "+T.accentBorder:"none",marginBottom:2}}>
                         {depth>0&&<span style={{fontSize:9,color:T.accentBorder,flexShrink:0}}>{"└"}</span>}
-                        <div style={{width:depth===0?34:26,height:depth===0?34:26,borderRadius:depth===0?7:5,background:complete?T.successBg:T.surface2,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":hasSubCraft?T.accentBorder:T.border),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,position:"relative"}}>
+                        <div style={{width:depth===0?34:26,height:depth===0?34:26,borderRadius:depth===0?7:5,background:complete?T.successBg:T.surface2,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":hasSubCraft&&!isSkipped?T.accentBorder:T.border),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,position:"relative"}}>
                           {complete&&<div style={{position:"absolute",top:1,right:1,fontSize:7,color:T.success}}>✓</div>}
                           {r.image_url?<img src={r.image_url} style={{width:depth===0?28:20,height:depth===0?28:20,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:depth===0?16:12}}>🌿</span>}
                         </div>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:depth===0?11:10,fontWeight:600,color:complete?T.success:hasSubCraft?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}{hasSubCraft&&<span style={{marginLeft:4,fontSize:8,color:T.accent,background:T.accentBg,borderRadius:4,padding:"1px 4px",border:"1px solid "+T.accentBorder}}>sous-craft</span>}</div>
+                          <div style={{fontSize:depth===0?11:10,fontWeight:600,color:complete?T.success:showChildren?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
                           {depth>0&&<div style={{fontSize:8,color:T.muted}}>×{total} nécessaires</div>}
                         </div>
+                        {/* ── Toggle craft/acheter ── */}
+                        {hasSubCraft&&(
+                          <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0,marginLeft:4}}>
+                            <span style={{fontSize:9,color:isSkipped?T.muted:T.accent,fontWeight:700,whiteSpace:"nowrap"}}>{isSkipped?"🛒 Acheter":"⚗️ Crafter"}</span>
+                            <div onClick={()=>setSkipSubCraft(p=>{const next={...p};if(next[key])delete next[key];else next[key]=true;return next;})}
+                              style={{width:36,height:20,borderRadius:10,background:isSkipped?T.border:T.accent,position:"relative",cursor:"pointer",transition:"background 0.2s",flexShrink:0,border:"1px solid "+(isSkipped?T.border2:T.accentBorder)}}>
+                              <div style={{position:"absolute",top:2,left:isSkipped?2:18,width:14,height:14,borderRadius:7,background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}}/>
+                            </div>
+                          </div>
+                        )}
                         <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-                          {!hasSubCraft&&<input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:10,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />}
+                          {(!hasSubCraft||isSkipped)&&<input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:10,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />}
                           <span style={{fontSize:11,fontWeight:700,color:complete?T.success:T.accent,background:complete?T.successBg:T.accentBg,borderRadius:5,padding:"2px 7px",border:"1px solid "+(complete?"rgba(34,197,94,0.3)":T.accentBorder),minWidth:28,textAlign:"center"}}>×{total}</span>
                         </div>
                       </div>
-                      {hasSubCraft&&renderNodes(r.subRecipe,depth+1)}
+                      {showChildren&&renderNodes(r.subRecipe,depth+1)}
                     </div>
                   );
                 });
