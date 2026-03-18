@@ -309,6 +309,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
   const [skipSubCraft,setSkipSubCraft]=useState(()=>{try{const r=localStorage.getItem(`craft_skip_${session.user.id}`);return r?JSON.parse(r):{}}catch{return {};}});
   const [collapsedItems,setCollapsedItems]=useState({});
+  const [sortOrder,setSortOrder]=useState(null); // null=nom, "asc"=niveau↑, "desc"=niveau↓
   const debounceRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(craftItems));}catch{}},[craftItems]);
   useEffect(()=>{try{localStorage.setItem(lsBanqKey,JSON.stringify(banque));}catch{}},[banque]);
@@ -327,7 +328,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
         try{
           const{data:recipeRow}=await supabase.from("recipes").select("*").eq("Item_Id",item.ankama_id).maybeSingle();
           let recipe=[];let jobLabel=null;
-          if(recipeRow?.Ingredients){jobLabel=recipeRow.Job??null;const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,quantity:r.quantity}));}
+          if(recipeRow?.Ingredients){jobLabel=recipeRow.Job??null;const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,level:icons[i]?.level??null,quantity:r.quantity}));}
           const newItem={ankama_id:item.ankama_id,name:item.name,level:item.level??null,image_url:item.image_urls?.icon??item.image_url??null,job:jobLabel,recipe};
           setCraftItems(prev=>[...prev,{item:newItem,qty:1}]);added++;
         }catch{}
@@ -339,8 +340,8 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   const loadSavedLists=async()=>{const{data}=await supabase.from("craft_lists").select("*").eq("user_id",session.user.id).order("created_at",{ascending:false});if(data)setSavedLists(data);};
   useEffect(()=>{if(debounceRef.current)clearTimeout(debounceRef.current);if(!query.trim()||query.length<2){setResults([]);return;}debounceRef.current=setTimeout(()=>doSearch(query,searchType),350);return()=>clearTimeout(debounceRef.current);},[query,searchType]);
   const doSearch=async(q,type)=>{setSearching(true);try{const r=await fetch(`${DOFUSDU_BASE}/items/${type}/search?query=${encodeURIComponent(q)}&limit=20`);if(!r.ok)throw new Error();const d=await r.json();setResults(Array.isArray(d)?d:[]);}catch{setResults([]);}setSearching(false);};
-  const fetchIconById=async(ankama_id)=>{const ck=`icon_${ankama_id}`;if(ingCache[ck]!==undefined)return ingCache[ck];for(const type of["resources","equipment","consumables","quest_items"]){try{const r=await fetch(`${DOFUSDU_BASE}/items/${type}/${ankama_id}`);if(r.ok){const d=await r.json();const v={icon:d?.image_urls?.icon??null,name:d?.name??null};setIngCache(p=>({...p,[ck]:v}));return v;}}catch{}}setIngCache(p=>({...p,[ck]:{icon:null,name:null}}));return{icon:null,name:null};};
-  const addItem=async(item)=>{const ex=craftItems.find(ci=>ci.item.ankama_id===item.ankama_id);if(ex){const nq=(ex.qty||1)+addQty;setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===item.ankama_id?{...ci,qty:nq}:ci));showToast(`${item.name} ×${nq}`);return;}setLoadingId(item.ankama_id);try{const{data:recipeRow}=await supabase.from("recipes").select("*").eq("Item_Id",item.ankama_id).maybeSingle();let recipe=[];let jobLabel=null;if(recipeRow?.Ingredients){jobLabel=recipeRow.Job??null;const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,quantity:r.quantity}));}const newItem={ankama_id:item.ankama_id,name:item.name,level:item.level??null,image_url:item.image_urls?.icon??null,subtype:searchType,job:jobLabel,recipe};setCraftItems(prev=>[...prev,{item:newItem,qty:addQty}]);showToast(`${item.name} ajouté ✓`);}catch{showToast("Erreur de chargement","err");}setLoadingId(null);};
+  const fetchIconById=async(ankama_id)=>{const ck=`icon_${ankama_id}`;if(ingCache[ck]!==undefined)return ingCache[ck];for(const type of["resources","equipment","consumables","quest_items"]){try{const r=await fetch(`${DOFUSDU_BASE}/items/${type}/${ankama_id}`);if(r.ok){const d=await r.json();const v={icon:d?.image_urls?.icon??null,name:d?.name??null,level:d?.level??null};setIngCache(p=>({...p,[ck]:v}));return v;}}catch{}}setIngCache(p=>({...p,[ck]:{icon:null,name:null,level:null}}));return{icon:null,name:null,level:null};};
+  const addItem=async(item)=>{const ex=craftItems.find(ci=>ci.item.ankama_id===item.ankama_id);if(ex){const nq=(ex.qty||1)+addQty;setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===item.ankama_id?{...ci,qty:nq}:ci));showToast(`${item.name} ×${nq}`);return;}setLoadingId(item.ankama_id);try{const{data:recipeRow}=await supabase.from("recipes").select("*").eq("Item_Id",item.ankama_id).maybeSingle();let recipe=[];let jobLabel=null;if(recipeRow?.Ingredients){jobLabel=recipeRow.Job??null;const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,level:icons[i]?.level??null,quantity:r.quantity}));}const newItem={ankama_id:item.ankama_id,name:item.name,level:item.level??null,image_url:item.image_urls?.icon??null,subtype:searchType,job:jobLabel,recipe};setCraftItems(prev=>[...prev,{item:newItem,qty:addQty}]);showToast(`${item.name} ajouté ✓`);}catch{showToast("Erreur de chargement","err");}setLoadingId(null);};
   const removeItem=(ankama_id)=>setCraftItems(prev=>prev.filter(ci=>ci.item.ankama_id!==ankama_id));
   const updateQty=(ankama_id,qty)=>{if(qty<=0)removeItem(ankama_id);else setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===ankama_id?{...ci,qty}:ci));};
   const clearList=()=>{setCraftItems([]);setActiveList(null);setListName("Mon atelier");setUpdateId(null);};
@@ -355,7 +356,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
     if(!recipeRow?.Ingredients){setSubCraftCache(p=>({...p,[ck]:null}));return null;}
     const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));
     const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));
-    const recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,quantity:r.quantity}));
+    const recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,level:icons[i]?.level??null,quantity:r.quantity}));
     setSubCraftCache(p=>({...p,[ck]:recipe}));
     return recipe;
   };
@@ -403,18 +404,24 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   // Re-resolve when craftItems change and sub-crafts are enabled
   useEffect(()=>{try{localStorage.setItem(`craft_subcrafts_${session.user.id}`,String(subCraftsEnabled));}catch{}},[subCraftsEnabled]);
   useEffect(()=>{try{localStorage.setItem(`craft_skip_${session.user.id}`,JSON.stringify(skipSubCraft));}catch{}},[skipSubCraft]);
-  useEffect(()=>{if(subCraftsEnabled)resolveAllSubCrafts();},[craftItems]);
+  useEffect(()=>{if(subCraftsEnabled)resolveAllSubCrafts();},[craftItems,subCraftsEnabled]);
 
   const totalIngredients=()=>{
+    let list;
     if(subCraftsEnabled&&Object.keys(subTrees).length>0){
       const map={};
       for(const{item}of craftItems){
         const tree=subTrees[item.ankama_id]||[];
         flattenToLeaves(tree,map,skipSubCraft);
       }
-      return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+      list=Object.values(map);
+    }else{
+      const map={};for(const{item,qty}of craftItems)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!map[k])map[k]={...r,qty:0,key:k};map[k].qty+=r.quantity*qty;}
+      list=Object.values(map);
     }
-    const map={};for(const{item,qty}of craftItems)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!map[k])map[k]={...r,qty:0,key:k};map[k].qty+=r.quantity*qty;}return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+    if(sortOrder==="asc")return list.sort((a,b)=>(a.level??0)-(b.level??0));
+    if(sortOrder==="desc")return list.sort((a,b)=>(b.level??0)-(a.level??0));
+    return list.sort((a,b)=>a.name.localeCompare(b.name));
   };
 
   const ingredients=totalIngredients();
@@ -527,7 +534,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                         </div>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:depth===0?11:10,fontWeight:600,color:complete?T.success:showChildren?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-                          {depth>0&&<div style={{fontSize:8,color:T.muted}}>×{total} nécessaires</div>}
+                          <div style={{fontSize:8,color:T.muted}}>{r.level?`Niv. ${r.level}`:""}{depth>0?(r.level?` · ×${total} nécess.`:`×${total} nécessaires`):""}</div>
                         </div>
                         {/* ── Toggle craft/acheter ── */}
                         {hasSubCraft&&(
@@ -570,7 +577,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                         {complete&&<div style={{position:"absolute",top:4,right:4,fontSize:9,color:T.success}}>✓</div>}
                         <div style={{width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:30,height:30,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:19}}>🌿</span>}</div>
                         <div style={{fontSize:10,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.25,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
-                        <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>ressource</div>
+                        <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>{r.level?`Niv. ${r.level}`:"ressource"}</div>
                         <div style={{display:"flex",alignItems:"center",gap:3,marginTop:1}}>
                           <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
                           <span style={{fontSize:10,color:T.muted}}>/{total}</span>
@@ -586,12 +593,19 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
           ):(
             ingredients.length===0?(<div style={{textAlign:"center",padding:"36px",color:T.muted,fontSize:13}}>Aucun ingrédient</div>):(
               <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 85px 115px 85px",padding:"8px 15px",background:T.panel,borderBottom:"1px solid "+T.border}}>
-                  {["Ressource","Nécessaire","En banque 🏦","Reste"].map((h,i)=>(<div key={h} style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:i===0?"left":"center"}}>{h}</div>))}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",background:T.panel,borderBottom:"1px solid "+T.border,alignItems:"center"}}>
+                  <div style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700}}>Ressource</div>
+                  <div style={{textAlign:"center"}}>
+                    <button onClick={()=>setSortOrder(s=>s==="asc"?"desc":s==="desc"?null:"asc")} style={{fontSize:9,color:sortOrder?T.accent:T.muted,background:sortOrder?T.accentBg:T.surface2,border:"1px solid "+(sortOrder?T.accentBorder:T.border2),borderRadius:4,padding:"2px 6px",cursor:"pointer",fontFamily:T.font,fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>
+                      NIV {sortOrder==="asc"?"↑":sortOrder==="desc"?"↓":"⇅"}
+                    </button>
+                  </div>
+                  {["Nécessaire","En banque 🏦","Reste"].map((h)=>(<div key={h} style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:"center"}}>{h}</div>))}
                 </div>
                 <div>
-                  {ingredients.map((ing,i)=>{const k=ing.key;const inBanque=bv(k);const reste=Math.max(0,ing.qty-inBanque);const complete=reste===0;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 85px 115px 85px",padding:"8px 15px",borderBottom:"1px solid "+T.border2,alignItems:"center",background:complete?T.successBg:"transparent"}}>
+                  {ingredients.map((ing,i)=>{const k=ing.key;const inBanque=bv(k);const reste=Math.max(0,ing.qty-inBanque);const complete=reste===0;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",borderBottom:"1px solid "+T.border2,alignItems:"center",background:complete?T.successBg:"transparent"}}>
                     <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}><div style={{width:24,height:24,borderRadius:5,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{ing.image_url?<img src={ing.image_url} style={{width:18,height:18,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:10}}>🌿</span>}</div><span style={{fontSize:12,color:complete?T.success:T.text,fontWeight:complete?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ing.name}</span>{complete&&<span style={{fontSize:11,color:T.success}}>✓</span>}</div>
+                    <div style={{textAlign:"center"}}>{ing.level?<span style={{fontSize:10,fontWeight:700,color:T.textSub,background:T.surface2,border:"1px solid "+T.border2,borderRadius:4,padding:"1px 5px"}}>{ing.level}</span>:<span style={{fontSize:9,color:T.muted}}>—</span>}</div>
                     <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:5,padding:"2px 9px"}}>{ing.qty}</span></div>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
                       <button onClick={()=>setBanque(b=>({...b,[k]:Math.max(0,bv(k)-1)}))} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.border2,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
@@ -601,8 +615,9 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                     <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:complete?T.success:reste<=ing.qty*0.3?"#f59e0b":T.danger,background:complete?T.successBg:reste<=ing.qty*0.3?"rgba(245,158,11,0.1)":T.dangerBg,border:"1px solid "+(complete?"rgba(34,197,94,0.3)":reste<=ing.qty*0.3?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"),borderRadius:5,padding:"2px 9px"}}>{complete?"✓":reste}</span></div>
                   </div>);})}
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 85px 115px 85px",padding:"8px 15px",background:T.panel,borderTop:"1px solid "+T.border}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",background:T.panel,borderTop:"1px solid "+T.border}}>
                   <div style={{fontSize:10,color:T.muted,display:"flex",alignItems:"center",gap:4}}><span style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:4,padding:"1px 6px",color:T.accent,fontWeight:700,fontSize:10}}>{ingredients.filter(i=>bv(i.key)>=i.qty).length}/{ingredients.length}</span>complètes</div>
+                  <div/>
                   <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:T.accent}}>{ingredients.reduce((s,i)=>s+i.qty,0)}</span></div>
                   <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:T.success}}>{Object.values(banque).reduce((s,v)=>s+(parseInt(v,10)||0),0)}</span></div>
                   <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:T.danger}}>{ingredients.reduce((s,i)=>s+Math.max(0,i.qty-bv(i.key)),0)}</span></div>
