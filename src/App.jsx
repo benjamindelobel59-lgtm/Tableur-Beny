@@ -672,59 +672,78 @@ function CraftTab({ session }) {
     setSearching(false);
   };
 
-  const fetchIngredient = async (ankama_id, subtype) => {
-    const cacheKey = `${subtype}_${ankama_id}`;
-    if (ingCache[cacheKey]) return ingCache[cacheKey];
-    const type = ["equipment","resources","consumables"].includes(subtype) ? subtype : "resources";
-    try {
-      const res = await fetch(`${DOFUSDU_BASE}/items/${type}/${ankama_id}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setIngCache(prev => ({...prev,[cacheKey]:data}));
-      return data;
-    } catch { return null; }
+  // Récupère UNIQUEMENT l'icône depuis DofusDU en testant les types dans l'ordre
+  const fetchIconById = async (ankama_id) => {
+    const cacheKey = `icon_${ankama_id}`;
+    if (ingCache[cacheKey] !== undefined) return ingCache[cacheKey];
+    const types = ["resources","equipment","consumables","quest_items"];
+    for (const type of types) {
+      try {
+        const res = await fetch(`${DOFUSDU_BASE}/items/${type}/${ankama_id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const icon = data?.image_urls?.icon ?? null;
+          const name = data?.name ?? null;
+          setIngCache(prev => ({...prev,[cacheKey]:{icon,name}}));
+          return {icon,name};
+        }
+      } catch {}
+    }
+    setIngCache(prev => ({...prev,[cacheKey]:{icon:null,name:null}}));
+    return {icon:null,name:null};
   };
 
   const addItem = async (item) => {
-    // If already in list, just increment
+    // Si déjà dans la liste → incrémenter
     const existing = craftItems.find(ci => ci.item.ankama_id === item.ankama_id);
     if (existing) {
       setCraftItems(prev => prev.map(ci => ci.item.ankama_id === item.ankama_id ? {...ci, qty: ci.qty+1} : ci));
       showCraftToast(`${item.name} × ${existing.qty+1} ✓`);
       return;
     }
-    // Fetch full detail
     setLoadingId(item.ankama_id);
     try {
-      const res = await fetch(`${DOFUSDU_BASE}/items/${searchType}/${item.ankama_id}`);
-      const detail = res.ok ? await res.json() : item;
+      // 1. Chercher la recette dans notre BDD Supabase
+      const {data: recipeRow} = await supabase
+        .from("recipes")
+        .select("*")
+        .eq("Item_Id", item.ankama_id)
+        .maybeSingle();
 
-      // Fetch ingredient details in parallel
-      let recipe = detail.recipe || [];
-      if (recipe.length > 0) {
-        const ingDetails = await Promise.all(
-          recipe.map(r => fetchIngredient(r.item_ankama_id, r.item_subtype || "resources"))
-        );
-        recipe = recipe.map((r, i) => ({
-          ankama_id:  r.item_ankama_id,
-          name:       ingDetails[i]?.name ?? "???",
-          image_url:  ingDetails[i]?.image_urls?.icon ?? null,
-          quantity:   r.quantity,
-          subtype:    r.item_subtype ?? "resources",
+      let recipe = [];
+      let jobLabel = null;
+
+      if (recipeRow?.Ingredients) {
+        jobLabel = recipeRow.Job ?? null;
+        // Parser "16512x3,303x3" → [{ankama_id, quantity}]
+        const ingParts = recipeRow.Ingredients.split(",").map(s => {
+          const [rawId, rawQty] = s.trim().split("x");
+          return {ankama_id: parseInt(rawId, 10), quantity: parseInt(rawQty, 10) || 1};
+        }).filter(r => !isNaN(r.ankama_id));
+
+        // 2. Récupérer icônes + noms depuis DofusDU en parallèle (seulement les skins)
+        const icons = await Promise.all(ingParts.map(r => fetchIconById(r.ankama_id)));
+
+        recipe = ingParts.map((r, i) => ({
+          ankama_id: r.ankama_id,
+          name:      icons[i]?.name ?? `#${r.ankama_id}`,
+          image_url: icons[i]?.icon ?? null,
+          quantity:  r.quantity,
         }));
       }
 
       const newItem = {
-        ankama_id: detail.ankama_id ?? item.ankama_id,
-        name:      detail.name ?? item.name,
-        level:     detail.level ?? item.level ?? null,
-        image_url: detail.image_urls?.icon ?? item.image_urls?.icon ?? null,
+        ankama_id: item.ankama_id,
+        name:      item.name,
+        level:     item.level ?? null,
+        image_url: item.image_urls?.icon ?? null,
         subtype:   searchType,
+        job:       jobLabel,
         recipe,
       };
       setCraftItems(prev => [...prev, {item: newItem, qty: 1}]);
       showCraftToast(`${newItem.name} ajouté ✓`);
-    } catch {
+    } catch(e) {
       showCraftToast("Erreur lors du chargement", "error");
     }
     setLoadingId(null);
@@ -875,7 +894,7 @@ function CraftTab({ session }) {
 
           {/* Quick tip */}
           <div style={{background:T.dimmer,border:"1px solid "+T.border,borderRadius:9,padding:"9px 12px",fontSize:11,color:T.muted,lineHeight:1.5}}>
-            💡 Clique sur un item pour l'ajouter. Les ingrédients sont automatiquement récupérés via l'<span style={{color:T.accent,fontWeight:600}}>API DofusDU</span>.
+            💡 Recettes depuis ta <span style={{color:T.accent,fontWeight:600}}>BDD Supabase</span> • Skins via <span style={{color:"#818cf8",fontWeight:600}}>DofusDU API</span>
           </div>
         </div>
 
@@ -913,7 +932,9 @@ function CraftTab({ session }) {
                     <div style={{display:"flex",gap:5,marginTop:3,flexWrap:"wrap"}}>
                       {item.level && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:T.dimmer,color:T.muted,border:"1px solid "+T.border}}>Niv. {item.level}</span>}
                       <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:typeColor[item.subtype]+"12",color:typeColor[item.subtype],border:"1px solid "+typeColor[item.subtype]+"30"}}>{CRAFT_SEARCH_TYPES.find(s=>s.id===item.subtype)?.label||item.subtype}</span>
-                      {item.recipe?.length > 0 && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:"rgba(52,211,153,0.1)",color:T.success,border:"1px solid rgba(52,211,153,0.2)"}}>✓ Recette ({item.recipe.length} ing.)</span>}
+                      {item.job && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:"rgba(129,140,248,0.1)",color:"#818cf8",border:"1px solid rgba(129,140,248,0.25)"}}>⚒️ {item.job}</span>}
+                      {item.recipe?.length > 0 && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:"rgba(52,211,153,0.1)",color:T.success,border:"1px solid rgba(52,211,153,0.2)"}}>✓ {item.recipe.length} ing.</span>}
+                      {item.recipe?.length === 0 && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:"rgba(248,113,113,0.08)",color:T.danger,border:"1px solid rgba(248,113,113,0.18)"}}>Pas dans la BDD</span>}
                     </div>
                   </div>
                   {/* Quantity controls */}
@@ -942,7 +963,7 @@ function CraftTab({ session }) {
                   </div>
                 )}
                 {item.recipe?.length === 0 && (
-                  <div style={{padding:"0 14px 8px 64px",fontSize:10,color:T.muted,fontStyle:"italic"}}>Aucune recette disponible pour cet item</div>
+                  <div style={{padding:"0 14px 8px 64px",fontSize:10,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD pour cet item</div>
                 )}
               </div>
             ))}
