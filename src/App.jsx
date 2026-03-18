@@ -687,21 +687,58 @@ function BuildTab({session}){
   const slot=BUILD_SLOTS.find(s=>s.id===activeSlot);
   const card={background:T.surface,border:"1px solid "+T.border,borderRadius:10};
 
+  // Tooltip state
+  const [tooltip,setTooltip]=useState({visible:false,item:null,x:0,y:0});
+
+  // Color for a stat line (positive=green, negative=red, special=blue)
+  const statColor=(eff)=>{
+    const v=eff.int_minimum??0;
+    const nm=(eff.type?.name||"").toLowerCase();
+    if(nm.includes("résistance")||nm.includes("resistance"))return v<0?"#ef4444":"#22c55e";
+    if(nm.includes("dommages"))return v<0?"#ef4444":"#f97316";
+    if(["pa","pm","portée","sagesse"].some(k=>nm.includes(k)))return "#60a5fa";
+    if(nm.includes("vitalité"))return "#f87171";
+    if(nm.includes("force"))return "#fb923c";
+    if(nm.includes("intelligence"))return "#c084fc";
+    if(nm.includes("chance"))return "#4ade80";
+    if(nm.includes("agilité"))return "#22d3ee";
+    return v<0?"#ef4444":"#e4e6ef";
+  };
+
+  const formatEff=(eff)=>{
+    const min=eff.int_minimum??0;const max=eff.int_maximum??min;
+    const nm=eff.type?.name||"";
+    if(min===max)return `${min>0?"+":""}${min} ${nm}`;
+    return `${min} à ${max>0?"+":""}${max} ${nm}`;
+  };
+
+  const handleSlotEnter=(e,item)=>{
+    if(!item)return;
+    const rect=e.currentTarget.getBoundingClientRect();
+    setTooltip({visible:true,item,x:rect.right+10,y:rect.top});
+  };
+  const handleSlotLeave=()=>setTooltip(t=>({...t,visible:false}));
+
   // Slot grid layout
   const SlotBtn=({s})=>{
     const item=build.slots[s.id];
     return(
-      <div style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+      <div style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}
+        onMouseEnter={e=>handleSlotEnter(e,item)}
+        onMouseLeave={handleSlotLeave}>
         <div onClick={()=>{setActiveSlot(s.id);setSearchQ("");setSearchRes([]);}}
+          onContextMenu={e=>{e.preventDefault();if(item)unequip(s.id);}}
           style={{width:64,height:64,borderRadius:10,background:item?T.surface2:T.panel,border:"2px solid "+(activeSlot===s.id?T.accent:item?T.accentBorder:T.border),cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:2,transition:"all 0.15s",position:"relative",overflow:"hidden"}}
           onMouseEnter={e=>e.currentTarget.style.borderColor=T.accent}
           onMouseLeave={e=>e.currentTarget.style.borderColor=activeSlot===s.id?T.accent:item?T.accentBorder:T.border}>
           {item?.image_urls?.icon
             ?<img src={item.image_urls.icon} style={{width:48,height:48,objectFit:"contain",imageRendering:"pixelated"}} alt="" onError={e=>e.target.style.display="none"}/>
             :<span style={{fontSize:22,opacity:0.35}}>{s.icon}</span>}
-          {item&&<button onClick={e=>{e.stopPropagation();unequip(s.id);}} style={{position:"absolute",top:1,right:1,width:14,height:14,borderRadius:3,background:"rgba(220,38,38,0.85)",border:"none",color:"#fff",cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>✕</button>}
+          {item&&<button onClick={e=>{e.stopPropagation();unequip(s.id);}} style={{position:"absolute",top:1,right:1,width:16,height:16,borderRadius:"50%",background:"#ef4444",border:"2px solid #1a1d27",color:"#fff",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,lineHeight:1}}>×</button>}
         </div>
-        <div style={{fontSize:8,color:item?T.accent:T.muted,textAlign:"center",fontWeight:item?600:400,letterSpacing:0.5,maxWidth:64,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item?item.name:s.label}</div>
+        <div style={{fontSize:8,color:item?T.accent:T.muted,textAlign:"center",fontWeight:item?600:400,letterSpacing:0.5,maxWidth:64,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item?item.name.toUpperCase().slice(0,8)+(item.name.length>8?"…":""):s.label.toUpperCase()}</div>
+        {/* Hint clic/clic droit */}
+        {item&&activeSlot===s.id&&<div style={{position:"absolute",bottom:-18,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.85)",color:"#aaa",fontSize:9,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap",zIndex:5,border:"1px solid #333"}}>Clic : sélectionner | Clic droit : retirer</div>}
       </div>
     );
   };
@@ -906,6 +943,46 @@ function BuildTab({session}){
         </div>
       </div>
       {toast&&<div style={{position:"fixed",bottom:20,right:20,background:toast.type==="err"?"#dc2626":T.accent,color:"#fff",padding:"9px 15px",borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:300,fontFamily:T.font}}>{toast.type==="err"?"❌":"✅"} {toast.msg}</div>}
+      {/* ── TOOLTIP ITEM ── */}
+      {tooltip.visible&&tooltip.item&&(()=>{
+        const it=tooltip.item;
+        const effs=it.effects||[];
+        const setName=it.parent_set?.name;
+        const typeLabel=it.type?.name||"";
+        return(
+          <div style={{position:"fixed",left:tooltip.x,top:Math.min(tooltip.y,window.innerHeight-400),zIndex:999,pointerEvents:"none",width:270,background:"#12141c",border:"2px solid #2a2d3d",borderRadius:12,boxShadow:"0 20px 60px rgba(0,0,0,0.85)",overflow:"hidden"}}>
+            {/* Header */}
+            <div style={{padding:"12px 14px 10px",borderBottom:"1px solid #1e2130"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                {it.image_urls?.icon&&<img src={it.image_urls.icon} style={{width:42,height:42,objectFit:"contain",imageRendering:"pixelated",flexShrink:0}} alt=""/>}
+                <div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#e4e6ef",lineHeight:1.2}}>{it.name}</div>
+                  <div style={{fontSize:11,color:"#5b6cf0",marginTop:2}}>{typeLabel}</div>
+                </div>
+              </div>
+              {it.level&&<div style={{fontSize:12,color:"#5b8cf0",fontWeight:600}}>Niveau {it.level}</div>}
+            </div>
+            {/* Stats */}
+            <div style={{padding:"10px 14px",maxHeight:280,overflowY:"auto"}}>
+              {effs.length>0
+                ?effs.map((eff,i)=>{
+                  const col=statColor(eff);
+                  return(<div key={i} style={{fontSize:12,color:col,lineHeight:1.7,fontWeight:500}}>{formatEff(eff)}</div>);
+                })
+                :<div style={{fontSize:11,color:"#585c72",fontStyle:"italic"}}>Aucun effet connu</div>
+              }
+            </div>
+            {/* Set */}
+            {setName&&<div style={{padding:"8px 14px",borderTop:"1px solid #1e2130",fontSize:11,color:"#5b6cf0",display:"flex",alignItems:"center",gap:5}}>
+              <span>🔗</span><span style={{fontStyle:"italic"}}>{setName}</span>
+            </div>}
+            {/* Hint */}
+            <div style={{padding:"6px 14px",background:"#0e1018",borderTop:"1px solid #1e2130",fontSize:9,color:"#3a3d50",textAlign:"center",letterSpacing:0.5}}>
+              CLIC : sélectionner &nbsp;|&nbsp; CLIC DROIT : retirer
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
