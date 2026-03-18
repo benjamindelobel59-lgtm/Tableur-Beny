@@ -275,7 +275,7 @@ function CraftTab({ session }) {
   const [saving,setSaving]=useState(false);const [loadingId,setLoadingId]=useState(null);const [ingCache,setIngCache]=useState({});
   const [activeList,setActiveList]=useState(null);const [deleteId,setDeleteId]=useState(null);const [updateId,setUpdateId]=useState(null);
   const [toast,setToast]=useState(null);const [addQty,setAddQty]=useState(1);
-  const [subCraftsEnabled,setSubCraftsEnabled]=useState(false);
+  const [subCraftsEnabled,setSubCraftsEnabled]=useState(()=>{try{return localStorage.getItem(`craft_subcrafts_${session.user.id}`)==="true";}catch{return false;}});
   const [subCraftCache,setSubCraftCache]=useState({});
   const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
   const debounceRef=useRef(null);
@@ -347,6 +347,7 @@ function CraftTab({ session }) {
   };
 
   // Re-resolve when craftItems change and sub-crafts are enabled
+  useEffect(()=>{try{localStorage.setItem(`craft_subcrafts_${session.user.id}`,String(subCraftsEnabled));}catch{}},[subCraftsEnabled]);
   useEffect(()=>{if(subCraftsEnabled)resolveAllSubCrafts();},[craftItems]);
 
   const totalIngredients=()=>{
@@ -440,7 +441,7 @@ function CraftTab({ session }) {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {craftView==="total"&&ingredients.length>0&&<button onClick={()=>setBanque({})} style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"1px solid "+T.border,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font}}>Réinit. banque</button>}
-            {craftItems.length>0&&<button onClick={toggleSubCrafts} disabled={resolvingSubCrafts} style={{fontSize:11,padding:"4px 11px",borderRadius:6,border:"1px solid "+(subCraftsEnabled?T.accentBorder:T.border),background:subCraftsEnabled?T.accentBg:T.surface2,color:subCraftsEnabled?T.accent:T.muted,cursor:resolvingSubCrafts?"wait":"pointer",fontFamily:T.font,fontWeight:subCraftsEnabled?700:400,display:"flex",alignItems:"center",gap:4}}>{resolvingSubCrafts?"⏳ Calcul...":"⚗️ Sous-crafts"}{subCraftsEnabled&&!resolvingSubCrafts&&<span style={{fontSize:9,background:T.accent,color:"#fff",borderRadius:10,padding:"1px 5px",fontWeight:700}}>ON</span>}</button>}
+            <button onClick={toggleSubCrafts} disabled={resolvingSubCrafts||craftItems.length===0} style={{fontSize:11,padding:"4px 11px",borderRadius:6,border:"1px solid "+(subCraftsEnabled?T.accentBorder:T.border),background:subCraftsEnabled?T.accentBg:T.surface2,color:subCraftsEnabled?T.accent:craftItems.length===0?T.muted+"55":T.muted,cursor:resolvingSubCrafts||craftItems.length===0?"not-allowed":"pointer",fontFamily:T.font,fontWeight:subCraftsEnabled?700:400,display:"flex",alignItems:"center",gap:4,opacity:craftItems.length===0?0.5:1}}>{resolvingSubCrafts?"⏳ Calcul...":"⚗️ Sous-crafts"}{subCraftsEnabled&&!resolvingSubCrafts&&<span style={{fontSize:9,background:T.accent,color:"#fff",borderRadius:10,padding:"1px 5px",fontWeight:700}}>ON</span>}</button>
             <div style={{display:"flex",background:T.surface2,borderRadius:7,padding:3,border:"1px solid "+T.border2}}>
               {[["par_craft","Par craft"],["total","Total global"]].map(([id,label])=>(<button key={id} onClick={()=>setCraftView(id)} style={{padding:"5px 11px",borderRadius:5,border:"none",background:craftView===id?T.accent:"transparent",color:craftView===id?"#fff":T.muted,fontWeight:craftView===id?700:400,cursor:"pointer",fontFamily:T.font,fontSize:12,transition:"all 0.15s"}}>{label}</button>))}
             </div>
