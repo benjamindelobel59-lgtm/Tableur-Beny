@@ -279,6 +279,7 @@ function CraftTab({ session }) {
   const [subCraftCache,setSubCraftCache]=useState({});
   const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
   const [skipSubCraft,setSkipSubCraft]=useState(()=>{try{const r=localStorage.getItem(`craft_skip_${session.user.id}`);return r?JSON.parse(r):{}}catch{return {};}});
+  const [collapsedItems,setCollapsedItems]=useState({});
   const debounceRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(craftItems));}catch{}},[craftItems]);
   useEffect(()=>{try{localStorage.setItem(lsBanqKey,JSON.stringify(banque));}catch{}},[banque]);
@@ -497,15 +498,21 @@ function CraftTab({ session }) {
                     </div>
                   );
                 });
-                return(
+                return(()=>{
+                  const isCollapsed=collapsedItems[item.ankama_id]||false;
+                  const toggleCollapse=()=>setCollapsedItems(p=>({...p,[item.ankama_id]:!p[item.ankama_id]}));
+                  return(
                   <div key={item.ankama_id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:"1px solid "+T.border2,background:T.panel}}>
+                    <div onClick={toggleCollapse} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:isCollapsed?"none":"1px solid "+T.border2,background:T.panel,cursor:"pointer",userSelect:"none"}} onMouseEnter={e=>e.currentTarget.style.background=T.surface2} onMouseLeave={e=>e.currentTarget.style.background=T.panel}>
                       <div style={{width:32,height:32,borderRadius:7,background:T.surface2,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>{item.image_url?<img src={item.image_url} style={{width:26,height:26,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:15}}>⚗️</span>}</div>
                       <div style={{flex:1}}><span style={{fontWeight:700,fontSize:13,color:T.text}}>{item.name}</span>{item.level&&<span style={{marginLeft:6,fontSize:10,color:T.muted}}>Niv. {item.level}</span>}</div>
                       {item.job&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:T.surface2,color:T.textSub,border:"1px solid "+T.border2}}>{item.job}</span>}
                       <span style={{fontSize:11,color:T.accent,fontWeight:700,background:T.accentBg,borderRadius:6,padding:"2px 8px",border:"1px solid "+T.accentBorder}}>×{qty}</span>
+                      <div style={{width:22,height:22,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",background:T.surface2,border:"1px solid "+T.border2,flexShrink:0,transition:"transform 0.2s",transform:isCollapsed?"rotate(-90deg)":"rotate(0deg)"}}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
                     </div>
-                    {subCraftsEnabled&&tree?(
+                    {!isCollapsed&&(subCraftsEnabled&&tree?(
                       tree.length>0?(<div style={{padding:"11px 13px"}}>{renderNodes(tree,0)}</div>):(<div style={{padding:"11px 13px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette connue</div>)
                     ):(
                       item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
@@ -520,9 +527,10 @@ function CraftTab({ session }) {
                         </div>
                       </div>);})}
                       </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)
-                    )}
+                    ))}
                   </div>
                 );
+                })();
               })}
             </div>
           ):(
