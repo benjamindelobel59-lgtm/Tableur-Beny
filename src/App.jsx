@@ -569,420 +569,375 @@ function CraftTab({ session }) {
 }
 
 // ─── BUILD TAB ────────────────────────────────────────────────
-const BUILD_SLOTS=[
-  {id:"coiffe",    label:"Coiffe",         icon:"🪖", pos:"top",    type:"headgear"},
-  {id:"amulette",  label:"Amulette",        icon:"📿", pos:"top",    type:"amulets"},
-  {id:"cape",      label:"Cape",            icon:"🧣", pos:"top",    type:"cloaks"},
-  {id:"bouclier",  label:"Bouclier",        icon:"🛡️", pos:"top",    type:"shields"},
-  {id:"arme",      label:"Arme",            icon:"⚔️", pos:"mid",    type:"weapons"},
-  {id:"anneau1",   label:"Anneau",          icon:"💍", pos:"mid",    type:"rings"},
-  {id:"anneau2",   label:"Anneau",          icon:"💍", pos:"mid",    type:"rings"},
-  {id:"ceinture",  label:"Ceinture",        icon:"🎗️", pos:"bot",    type:"belts"},
-  {id:"bottes",    label:"Bottes",          icon:"👢", pos:"bot",    type:"boots"},
-  {id:"dofus1",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
-  {id:"dofus2",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
-  {id:"dofus3",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
-  {id:"dofus4",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
-  {id:"dofus5",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
-  {id:"dofus6",    label:"Dofus/Trophée",   icon:"🥚", pos:"dofus",  type:"pets"},
+const SL=[
+  {k:'chapeau',  l:'Coiffe',       ph:'https://api.dofusdb.fr/img/items/16289.png'},
+  {k:'amulette', l:'Amulette',     ph:'https://api.dofusdb.fr/img/items/1181.png'},
+  {k:'cape',     l:'Cape',         ph:'https://api.dofusdb.fr/img/items/17256.png'},
+  {k:'bouclier', l:'Bouclier',     ph:'https://api.dofusdb.fr/img/items/82031.png'},
+  {k:'arme',     l:'Arme',         ph:'https://api.dofusdb.fr/img/items/5069.png'},
+  {k:'anneau1',  l:'Anneau',       ph:'https://api.dofusdb.fr/img/items/9142.png'},
+  {k:'anneau2',  l:'Anneau',       ph:'https://api.dofusdb.fr/img/items/9142.png'},
+  {k:'familier', l:'Familier',     ph:'https://api.dofusdb.fr/img/items/18011.png'},
+  {k:'ceinture', l:'Ceinture',     ph:'https://api.dofusdb.fr/img/items/10176.png'},
+  {k:'bottes',   l:'Bottes',       ph:'https://api.dofusdb.fr/img/items/11230.png'},
+  {k:'dofus1',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
+  {k:'dofus2',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
+  {k:'dofus3',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
+  {k:'dofus4',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
+  {k:'dofus5',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
+  {k:'dofus6',   l:'Dofus/Trophée',ph:'https://api.dofusdb.fr/img/items/23001.png'},
 ];
-const STAT_KEYS=["vitalite","force","intelligence","chance","agilite","sagesse"];
-const STAT_LABELS={vitalite:"Vitalité",force:"Force",intelligence:"Intelligence",chance:"Chance",agilite:"Agilité",sagesse:"Sagesse"};
-const STAT_ICONS={vitalite:"❤️",force:"💪",intelligence:"🧠",chance:"🍀",agilite:"💨",sagesse:"🌟"};
-const defaultBuild=()=>({name:"Mon Build",classe:"Iop",level:200,slots:{},carac:{vitalite:0,force:0,intelligence:0,chance:0,agilite:0,sagesse:0}});
+const SCOL={"Vitalité":"#ef4444","PA":"#60a5fa","PM":"#4ade80","Portée":"#c084fc","Force":"#ef4444","Intelligence":"#fb923c","Chance":"#60a5fa","Agilité":"#4ade80","Sagesse":"#60a5fa","Puissance":"#fbbf24","Dommages":"#ef4444","% Critique":"#ef4444","Initiative":"#fb923c","Prospection":"#fbbf24","Soins":"#4ade80","Invocations":"#c084fc"};
+const CARACS=['Vitalité','Sagesse','Force','Intelligence','Chance','Agilité'];
+const CARAC_ICONS={"Vitalité":"❤️","Sagesse":"🌟","Force":"💪","Intelligence":"🧠","Chance":"🍀","Agilité":"💨"};
+const costBySlice=(stat,invested)=>{if(stat==='Vitalité')return 1;if(stat==='Sagesse')return 3;if(invested<100)return 1;if(invested<200)return 2;if(invested<300)return 3;if(invested<400)return 4;return 5;};
+const pointsToStat=(stat,pts)=>{if(stat==='Vitalité')return pts;if(stat==='Sagesse')return Math.floor(pts/3);let v=0,rm=pts;for(const[cap,cost]of[[100,1],[100,2],[100,3],[100,4],[1e9,5]]){const take=cap<1e9?Math.min(rm,cap*cost):rm;const gained=Math.floor(take/cost);v+=gained;rm-=gained*cost;if(rm<=0)break;}return v;};
+const defaultBuild=()=>({name:'Mon Build',classe:'Iop',level:200,slots:{},ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0},parcho:{PA:0,PM:0,Portée:0}});
 
 function BuildTab({session}){
   const T=useT();const fi=makeFi(T);
-  const lsKey=`build_v1_${session.user.id}`;
+  const lsKey='bld_v2_'+session.user.id;
   const [builds,setBuilds]=useState(()=>{try{const r=localStorage.getItem(lsKey);return r?JSON.parse(r):[]}catch{return [];}});
-  const [activeBuild,setActiveBuild]=useState(null);
+  const [activeBuildId,setActiveBuildId]=useState(null);
   const [build,setBuild]=useState(defaultBuild());
+  const [buildName,setBuildName]=useState('Mon Build');
   const [activeSlot,setActiveSlot]=useState(null);
-  const [searchQ,setSearchQ]=useState("");
+  const [searchQ,setSearchQ]=useState('');
   const [searchRes,setSearchRes]=useState([]);
   const [searching,setSearching]=useState(false);
+  const [tip,setTip]=useState({vis:false,item:null,x:0,y:0});
   const [toast,setToast]=useState(null);
-  const [buildName,setBuildName]=useState("Mon Build");
   const debRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(builds));}catch{}},[builds]);
-  const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
+  const showToast=(msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
 
-  // Search items
   useEffect(()=>{
     if(debRef.current)clearTimeout(debRef.current);
     if(!searchQ.trim()||searchQ.length<2){setSearchRes([]);return;}
-    const slot=BUILD_SLOTS.find(s=>s.id===activeSlot);
     debRef.current=setTimeout(async()=>{
       setSearching(true);
-      try{
-        const types=slot?.id.startsWith("dofus")?["equipment"]:["equipment"];
-        const r=await fetch(`${DOFUSDU_BASE}/items/equipment/search?query=${encodeURIComponent(searchQ)}&limit=20`);
-        if(r.ok){const d=await r.json();setSearchRes(Array.isArray(d)?d:[]);}
-      }catch{}
+      try{const r=await fetch(DOFUSDU_BASE+'/items/equipment/search?query='+encodeURIComponent(searchQ)+'&limit=24');if(r.ok){const d=await r.json();setSearchRes(Array.isArray(d)?d:[]);}}catch{}
       setSearching(false);
     },350);
-  },[searchQ,activeSlot]);
+  },[searchQ]);
 
-  const fetchFullItem=async(ankama_id)=>{
-    try{
-      const r=await fetch(`${DOFUSDU_BASE}/items/equipment/${ankama_id}`);
-      if(r.ok)return await r.json();
-    }catch{}
-    return null;
+  const fetchFull=async(id)=>{try{const r=await fetch(DOFUSDU_BASE+'/items/equipment/'+id);if(r.ok)return await r.json();}catch{}return null;};
+  const equipItem=async(item)=>{const full=await fetchFull(item.ankama_id)||item;setBuild(b=>({...b,slots:{...b.slots,[activeSlot]:full}}));setActiveSlot(null);setSearchQ('');setSearchRes([]);showToast(item.name+' équipé ✓');};
+  const unequipSlot=(k)=>setBuild(b=>{const s={...b.slots};delete s[k];return{...b,slots:s};});
+
+  const maxPts=(lv)=>(lv-1)*5;
+  const usedPts=()=>Object.values(build.ch).reduce((a,b)=>a+b,0);
+  const addCarac=(stat,delta)=>{setBuild(b=>{const cur=b.ch[stat]||0;let next=cur+delta;if(next<0)next=0;if(delta>0){const avail=maxPts(b.level)-Object.values(b.ch).reduce((a,v)=>a+v,0);if(delta>avail)next=cur+avail;}return{...b,ch:{...b.ch,[stat]:next}};});};
+
+  const calcStats=()=>{
+    const base={},eq={},t={};
+    base['Vitalité']=55+(build.level-1)*5;base['PA']=6+(build.level>=100?1:0);base['PM']=3;base['Prospection']=100;base['Pods']=1000;
+    for(const[k,pts]of Object.entries(build.ch)){const v=pointsToStat(k,pts);if(v)eq[k]=(eq[k]||0)+v;}
+    for(const item of Object.values(build.slots)){if(!item)continue;for(const eff of(item.effects||[])){const nm=eff.type?.name||'';const v=eff.int_maximum??eff.int_minimum??0;if(nm)eq[nm]=(eq[nm]||0)+v;}}
+    const totalSag=(base['Sagesse']||0)+(eq['Sagesse']||0);const sagD=Math.floor(totalSag/10);
+    if(sagD){['Esquive PA','Esquive PM','Retrait PA','Retrait PM'].forEach(k=>eq[k]=(eq[k]||0)+sagD);}
+    const totalAgi=(base['Agilité']||0)+(eq['Agilité']||0);if(Math.floor(totalAgi/10)){const d=Math.floor(totalAgi/10);eq['Tacle']=(eq['Tacle']||0)+d;eq['Fuite']=(eq['Fuite']||0)+d;}
+    const totalCha=(base['Chance']||0)+(eq['Chance']||0);if(Math.floor(totalCha/10))eq['Prospection']=(eq['Prospection']||0)+Math.floor(totalCha/10);
+    for(const k of new Set([...Object.keys(base),...Object.keys(eq)])){t[k]=(base[k]||0)+(eq[k]||0);}
+    t['Initiative']=(t['Initiative']||0)+(t['Force']||0)+(t['Intelligence']||0)+(t['Chance']||0)+(t['Agilité']||0);
+    if(t['PA']>12)t['PA']=12;if(t['PM']>6)t['PM']=6;if(t['Portée']>6)t['Portée']=6;
+    return t;
   };
+  const stats=calcStats();
 
-  const equip=async(item)=>{
-    const full=await fetchFullItem(item.ankama_id);
-    const equipped=full||item;
-    setBuild(b=>({...b,slots:{...b.slots,[activeSlot]:equipped}}));
-    setActiveSlot(null);setSearchQ("");setSearchRes([]);
-    showToast(`${item.name} équipé ✓`);
-  };
+  const saveBuild=()=>{const b={...build,name:buildName,id:activeBuildId||Date.now().toString()};if(activeBuildId){setBuilds(p=>p.map(x=>x.id===activeBuildId?b:x));}else{setBuilds(p=>[b,...p]);setActiveBuildId(b.id);}showToast('Build sauvegardé ✓');};
+  const loadBuild=(b)=>{setBuild(b);setBuildName(b.name);setActiveBuildId(b.id);};
+  const newBuild=()=>{setBuild(defaultBuild());setBuildName('Mon Build');setActiveBuildId(null);};
+  const deleteBuild=(id)=>{setBuilds(p=>p.filter(b=>b.id!==id));if(activeBuildId===id)newBuild();showToast('Build supprimé');};
 
-  const unequip=(slotId)=>setBuild(b=>{const s={...b.slots};delete s[slotId];return{...b,slots:s};});
+  const onSlotEnter=(e,item)=>{if(!item)return;const rect=e.currentTarget.getBoundingClientRect();const flip=rect.right+270>window.innerWidth;setTip({vis:true,item,x:flip?rect.left-270:rect.right+8,y:Math.min(rect.top,window.innerHeight-440)});};
+  const onSlotLeave=()=>setTip(t=>({...t,vis:false}));
 
-  // Compute stats from equipped items
-  const computeStats=()=>{
-    const base={vitalite:0,force:0,intelligence:0,chance:0,agilite:0,sagesse:0,pa:0,pm:0,portee:0,pods:0,tacle:0,fuite:0,esquive_pa:0,esquive_pm:0,retrait_pa:0,retrait_pm:0,dom_terre:0,dom_feu:0,dom_eau:0,dom_air:0,dom_neutre:0,res_terre:0,res_feu:0,res_eau:0,res_air:0,res_neutre:0,ini:0,critique:0};
-    const statMap={
-      "Vitalité":"vitalite","Force":"force","Intelligence":"intelligence","Chance":"chance","Agilité":"agilite","Sagesse":"sagesse",
-      "PA":"pa","PM":"pm","Portée":"portee","Pods":"pods","Tacle":"tacle","Fuite":"fuite",
-      "Esquive PA":"esquive_pa","Esquive PM":"esquive_pm","Retrait PA":"retrait_pa","Retrait PM":"retrait_pm",
-      "Dommages Terre":"dom_terre","Dommages Feu":"dom_feu","Dommages Eau":"dom_eau","Dommages Air":"dom_air","Dommages Neutre":"dom_neutre",
-      "Résistance Terre":  "res_terre","Résistance Feu":"res_feu","Résistance Eau":"res_eau","Résistance Air":"res_air","Résistance Neutre":"res_neutre",
-      "Initiative":"ini","% Critique":"critique",
-    };
-    for(const item of Object.values(build.slots)){
-      for(const eff of(item.effects||[])){
-        const key=statMap[eff.type?.name||""];
-        if(key&&eff.int_maximum!=null)base[key]+=(eff.int_minimum||0+eff.int_maximum||0)/2||(eff.int_minimum||0);
-        else if(key&&eff.int_minimum!=null)base[key]+=eff.int_minimum;
-      }
-    }
-    // Add carac points (1 carac = varies by stat)
-    base.vitalite+=build.carac.vitalite;
-    base.force+=build.carac.force;
-    base.intelligence+=build.carac.intelligence;
-    base.chance+=build.carac.chance;
-    base.agilite+=build.carac.agilite;
-    base.sagesse+=Math.floor(build.carac.sagesse/3);
-    return base;
-  };
+  const fmtEff=(eff)=>{const min=eff.int_minimum??0;const max=eff.int_maximum??min;const nm=eff.type?.name||'';if(min===max)return(min>=0?'+':'')+min+' '+nm;return min+' à '+(max>=0?'+':'')+max+' '+nm;};
+  const effColor=(eff)=>{const v=eff.int_minimum??0;const nm=(eff.type?.name||'');const col=SCOL[nm];if(col)return v<0&&!nm.includes('Résistance')?'#ef4444':col;return v<0?'#ef4444':'#d0ccc4';};
 
-  const stats=computeStats();
-  const totalCarac=Object.values(build.carac).reduce((s,v)=>s+v,0);
-  const maxCarac=5*(build.level||200);
-  const remainCarac=maxCarac-totalCarac;
+  const used=usedPts();const maxP=maxPts(build.level);const rem=maxP-used;
+  const pct=Math.min(100,maxP>0?used/maxP*100:0);
 
-  const saveBuild=()=>{
-    const b={...build,name:buildName,id:activeBuild?.id||Date.now().toString()};
-    if(activeBuild){setBuilds(prev=>prev.map(x=>x.id===activeBuild.id?b:x));}
-    else{setBuilds(prev=>[b,...prev]);}
-    setActiveBuild(b);showToast("Build sauvegardé ✓");
-  };
-  const loadBuild=(b)=>{setBuild(b);setBuildName(b.name);setActiveBuild(b);};
-  const newBuild=()=>{setBuild(defaultBuild());setBuildName("Mon Build");setActiveBuild(null);};
-  const deleteBuild=(id)=>{setBuilds(p=>p.filter(b=>b.id!==id));if(activeBuild?.id===id)newBuild();showToast("Build supprimé");};
+  const statRows=[
+    {nm:'Vitalité',ic:'❤️',bv:55+(build.level-1)*5,hasCh:true},
+    {nm:'PA',ic:'⚡',bv:6+(build.level>=100?1:0),hasCh:false},
+    {nm:'PM',ic:'🦵',bv:3,hasCh:false},
+    {nm:'Portée',ic:'🎯',bv:0,hasCh:false},
+    null,
+    {nm:'Force',ic:'💪',bv:0,hasCh:true},
+    {nm:'Intelligence',ic:'🧠',bv:0,hasCh:true},
+    {nm:'Chance',ic:'🍀',bv:0,hasCh:true},
+    {nm:'Agilité',ic:'💨',bv:0,hasCh:true},
+    {nm:'Sagesse',ic:'🌟',bv:0,hasCh:true},
+  ];
+  const statRows2=[
+    {nm:'Pods',ic:'🎒',bv:1000},null,
+    {nm:'Tacle',ic:'⚔️',bv:0},{nm:'Fuite',ic:'🏃',bv:0},
+    {nm:'Esquive PA',ic:'🛡️',bv:0},{nm:'Esquive PM',ic:'🛡️',bv:0},
+    {nm:'Retrait PA',ic:'↩️',bv:0},{nm:'Retrait PM',ic:'↩️',bv:0},
+    null,
+    {nm:'Initiative',ic:'🏆',bv:0},{nm:'Prospection',ic:'🔍',bv:100},{nm:'% Critique',ic:'💥',bv:0},{nm:'Soins',ic:'💚',bv:0},
+    null,
+    {nm:'Dommages Terre',ic:'🟤',bv:0},{nm:'Dommages Feu',ic:'🔴',bv:0},
+    {nm:'Dommages Eau',ic:'🔵',bv:0},{nm:'Dommages Air',ic:'🟢',bv:0},{nm:'Dommages Neutre',ic:'⚪',bv:0},
+    null,
+    {nm:'Résistance Terre',ic:'🟤',bv:0},{nm:'Résistance Feu',ic:'🔴',bv:0},
+    {nm:'Résistance Eau',ic:'🔵',bv:0},{nm:'Résistance Air',ic:'🟢',bv:0},{nm:'Résistance Neutre',ic:'⚪',bv:0},
+  ];
 
-  const slot=BUILD_SLOTS.find(s=>s.id===activeSlot);
-  const card={background:T.surface,border:"1px solid "+T.border,borderRadius:10};
-
-  // Tooltip state
-  const [tooltip,setTooltip]=useState({visible:false,item:null,x:0,y:0});
-
-  // Color for a stat line (positive=green, negative=red, special=blue)
-  const statColor=(eff)=>{
-    const v=eff.int_minimum??0;
-    const nm=(eff.type?.name||"").toLowerCase();
-    if(nm.includes("résistance")||nm.includes("resistance"))return v<0?"#ef4444":"#22c55e";
-    if(nm.includes("dommages"))return v<0?"#ef4444":"#f97316";
-    if(["pa","pm","portée","sagesse"].some(k=>nm.includes(k)))return "#60a5fa";
-    if(nm.includes("vitalité"))return "#f87171";
-    if(nm.includes("force"))return "#fb923c";
-    if(nm.includes("intelligence"))return "#c084fc";
-    if(nm.includes("chance"))return "#4ade80";
-    if(nm.includes("agilité"))return "#22d3ee";
-    return v<0?"#ef4444":"#e4e6ef";
-  };
-
-  const formatEff=(eff)=>{
-    const min=eff.int_minimum??0;const max=eff.int_maximum??min;
-    const nm=eff.type?.name||"";
-    if(min===max)return `${min>0?"+":""}${min} ${nm}`;
-    return `${min} à ${max>0?"+":""}${max} ${nm}`;
-  };
-
-  const handleSlotEnter=(e,item)=>{
-    if(!item)return;
-    const rect=e.currentTarget.getBoundingClientRect();
-    setTooltip({visible:true,item,x:rect.right+10,y:rect.top});
-  };
-  const handleSlotLeave=()=>setTooltip(t=>({...t,visible:false}));
-
-  // Slot grid layout
-  const SlotBtn=({s})=>{
-    const item=build.slots[s.id];
-    return(
-      <div style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}
-        onMouseEnter={e=>handleSlotEnter(e,item)}
-        onMouseLeave={handleSlotLeave}>
-        <div onClick={()=>{setActiveSlot(s.id);setSearchQ("");setSearchRes([]);}}
-          onContextMenu={e=>{e.preventDefault();if(item)unequip(s.id);}}
-          style={{width:64,height:64,borderRadius:10,background:item?T.surface2:T.panel,border:"2px solid "+(activeSlot===s.id?T.accent:item?T.accentBorder:T.border),cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:2,transition:"all 0.15s",position:"relative",overflow:"hidden"}}
-          onMouseEnter={e=>e.currentTarget.style.borderColor=T.accent}
-          onMouseLeave={e=>e.currentTarget.style.borderColor=activeSlot===s.id?T.accent:item?T.accentBorder:T.border}>
-          {item?.image_urls?.icon
-            ?<img src={item.image_urls.icon} style={{width:48,height:48,objectFit:"contain",imageRendering:"pixelated"}} alt="" onError={e=>e.target.style.display="none"}/>
-            :<span style={{fontSize:22,opacity:0.35}}>{s.icon}</span>}
-          {item&&<button onClick={e=>{e.stopPropagation();unequip(s.id);}} style={{position:"absolute",top:1,right:1,width:16,height:16,borderRadius:"50%",background:"#ef4444",border:"2px solid #1a1d27",color:"#fff",cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,lineHeight:1}}>×</button>}
-        </div>
-        <div style={{fontSize:8,color:item?T.accent:T.muted,textAlign:"center",fontWeight:item?600:400,letterSpacing:0.5,maxWidth:64,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item?item.name.toUpperCase().slice(0,8)+(item.name.length>8?"…":""):s.label.toUpperCase()}</div>
-        {/* Hint clic/clic droit */}
-        {item&&activeSlot===s.id&&<div style={{position:"absolute",bottom:-18,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.85)",color:"#aaa",fontSize:9,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap",zIndex:5,border:"1px solid #333"}}>Clic : sélectionner | Clic droit : retirer</div>}
-      </div>
-    );
-  };
+  const cardS={background:T.surface,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden'};
+  const tdBase={padding:'2px 4px',fontSize:11,fontWeight:600,textAlign:'right',background:T.surface,borderBottom:'1px solid '+T.border2,whiteSpace:'nowrap'};
 
   return(
-    <div style={{display:"flex",gap:14,height:"calc(100vh - 112px)",overflow:"hidden"}}>
-      {/* ── COL 1 : MES BUILDS ── */}
-      <div style={{width:190,flexShrink:0,...card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{padding:"11px 12px",borderBottom:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Mes Builds</span>
-          <button onClick={newBuild} style={{width:22,height:22,borderRadius:5,border:"1px solid "+T.border,background:T.surface2,color:T.textSub,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>+</button>
+    <div style={{display:'flex',gap:12,height:'calc(100vh - 112px)',fontFamily:T.font,overflow:'hidden',fontSize:13}}>
+      <style>{`
+        @keyframes bldPulse{0%,100%{box-shadow:0 0 10px ${T.accent}33}50%{box-shadow:0 0 22px ${T.accent}55}}
+        @keyframes tipFade{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+        .bld-slot{width:64px;height:64px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:all .18s;position:relative;border:2px dashed ${T.border};background:${T.panel}}
+        .bld-slot.filled{background:${T.surface2};border:2px solid ${T.border}}
+        .bld-slot:hover,.bld-slot.active{border-color:${T.accent}!important}
+        .bld-slot.active{animation:bldPulse 2s ease-in-out infinite}
+        .bld-slot:hover{box-shadow:0 0 14px ${T.accent}33}
+        .bld-slot img.iimg{width:36px;height:36px;object-fit:contain;image-rendering:pixelated;transition:transform .12s}
+        .bld-slot:hover img.iimg{transform:scale(1.08)}
+        .bld-slot img.ph{width:34px;height:34px;object-fit:contain;filter:grayscale(1) opacity(.25)}
+        .slot-lbl{font-size:7px;font-weight:700;color:${T.muted};text-transform:uppercase;letter-spacing:.3px;max-width:60px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .bld-slot.filled .slot-lbl{color:${T.textSub}}
+        .slot-rm{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid ${T.surface};color:#fff;font-size:9px;display:none;align-items:center;justify-content:center;cursor:pointer;font-weight:800;line-height:1;z-index:2}
+        .bld-slot.filled:hover .slot-rm{display:flex}
+        .slot-rm:hover{transform:scale(1.15)}
+        .crbtn{width:22px;height:22px;padding:0;border-radius:5px;border:1px solid ${T.border};background:${T.surface2};color:${T.text};cursor:pointer;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit}
+        .crbtn:hover{background:${T.accent};border-color:${T.accent};color:#fff}
+        .icard2{display:flex;align-items:center;gap:7px;padding:5px 8px;background:${T.surface2};border:1px solid transparent;border-radius:7px;cursor:pointer;transition:all .15s}
+        .icard2:hover{background:${T.surface};border-color:${T.border};transform:translateX(2px)}
+        .bstbl{width:100%;border-collapse:separate;border-spacing:0 1px}
+        .bstbl th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${T.muted};padding:3px 4px;text-align:right;background:${T.panel};position:sticky;top:0;z-index:1;white-space:nowrap}
+        .bstbl th:first-child{text-align:left;border-radius:4px 0 0 4px}
+        .bstbl th:last-child{border-radius:0 4px 4px 0}
+        .bstbl td:first-child{text-align:left;font-weight:700;color:${T.textSub};border-radius:4px 0 0 4px}
+        .bstbl td:last-child{border-radius:0 4px 4px 0}
+        .bstbl tr:hover td{background:${T.surface2}!important}
+        .bstbl .sp td{height:6px;border:none!important;background:none!important}
+        .bstbl .vt{color:#fff;font-weight:800;font-size:13px}
+      `}</style>
+
+      {/* ── COL 1 : BUILDS ── */}
+      <div style={{width:185,flexShrink:0,...cardS,display:'flex',flexDirection:'column'}}>
+        <div style={{padding:'10px 12px',borderBottom:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:2,fontWeight:700}}>Mes Builds</span>
+          <button onClick={newBuild} style={{width:22,height:22,borderRadius:5,border:'1px solid '+T.border,background:T.surface2,color:T.textSub,cursor:'pointer',fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:T.font}}>+</button>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:"5px 7px"}}>
-          {builds.length===0&&<div style={{padding:"20px 8px",textAlign:"center",color:T.muted,fontSize:11}}>Aucun build sauvegardé</div>}
+        <div style={{flex:1,overflowY:'auto',padding:'5px 7px'}}>
+          {builds.length===0&&<div style={{padding:'24px 8px',textAlign:'center',color:T.muted,fontSize:11}}>Aucun build</div>}
           {builds.map(b=>(
-            <div key={b.id} onClick={()=>loadBuild(b)} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:7,background:activeBuild?.id===b.id?T.accentBg:T.surface,border:"1px solid "+(activeBuild?.id===b.id?T.accentBorder:T.border2),cursor:"pointer",marginBottom:3,transition:"all 0.15s"}}>
-              <img src={CLASS_ICONS[b.classe]} style={{width:22,height:22,objectFit:"contain",flexShrink:0}} alt="" onError={e=>e.target.style.display="none"}/>
-              <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:activeBuild?.id===b.id?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div><div style={{fontSize:9,color:T.muted}}>Niv.{b.level} {b.classe}</div></div>
-              <button onClick={e=>{e.stopPropagation();deleteBuild(b.id);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,opacity:0.5}}>✕</button>
+            <div key={b.id} onClick={()=>loadBuild(b)} style={{display:'flex',alignItems:'center',gap:7,padding:'7px 9px',borderRadius:7,background:activeBuildId===b.id?T.accentBg:T.surface,border:'1px solid '+(activeBuildId===b.id?T.accentBorder:T.border2),cursor:'pointer',marginBottom:3,transition:'all .15s'}}>
+              <img src={CLASS_ICONS[b.classe]} style={{width:20,height:20,objectFit:'contain',flexShrink:0}} alt="" onError={e=>e.target.style.display='none'}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,fontWeight:600,color:activeBuildId===b.id?T.accent:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div>
+                <div style={{fontSize:9,color:T.muted}}>Niv.{b.level} {b.classe}</div>
+              </div>
+              <button onClick={e=>{e.stopPropagation();deleteBuild(b.id);}} style={{background:'transparent',border:'none',color:T.muted,cursor:'pointer',fontSize:11,opacity:.5,flexShrink:0}}>✕</button>
             </div>
           ))}
         </div>
-        <div style={{padding:"9px 7px",borderTop:"1px solid "+T.border}}>
-          <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:"6px 9px",fontSize:11,marginBottom:5}} placeholder="Nom du build..."/>
-          <button onClick={saveBuild} style={{width:"100%",padding:"6px",borderRadius:7,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font,fontSize:11}}>💾 Sauvegarder</button>
+        <div style={{padding:'8px 7px',borderTop:'1px solid '+T.border}}>
+          <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:'5px 9px',fontSize:11,marginBottom:5}} placeholder="Nom du build…"/>
+          <button onClick={saveBuild} style={{width:'100%',padding:'6px',borderRadius:7,border:'none',background:T.accent,color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>💾 Sauvegarder</button>
         </div>
       </div>
 
-      {/* ── COL 2 : MANNEQUIN + CLASSE ── */}
-      <div style={{width:320,flexShrink:0,display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
+      {/* ── COL 2 : MANNEQUIN ── */}
+      <div style={{width:300,flexShrink:0,display:'flex',flexDirection:'column',gap:10,overflowY:'auto'}}>
         {/* Classe */}
-        <div style={{...card,padding:"12px"}}>
-          <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>Classe</div>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-            <img src={CLASS_ICONS[build.classe]} style={{width:36,height:36,objectFit:"contain"}} alt="" onError={e=>e.target.style.display="none"}/>
-            <span style={{fontWeight:700,fontSize:14,color:T.text}}>{build.classe}</span>
-            <input type="number" min={1} max={200} value={build.level} onChange={e=>setBuild(b=>({...b,level:Math.min(200,Math.max(1,parseInt(e.target.value)||1))}))} style={{...fi,width:60,padding:"4px 6px",fontSize:12,marginLeft:"auto"}} />
+        <div style={{...cardS,padding:'12px'}}>
+          <div style={{fontSize:9,color:T.accent,letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:8}}>Personnage</div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:9}}>
+            <img src={CLASS_ICONS[build.classe]} style={{width:34,height:34,objectFit:'contain',flexShrink:0}} alt="" onError={e=>e.target.style.display='none'}/>
+            <div style={{flex:1,minWidth:0}}>
+              <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:'3px 7px',fontSize:13,fontWeight:700,marginBottom:2,width:'100%'}}/>
+              <div style={{fontSize:10,color:T.muted}}>{build.classe} — Niv. {build.level}</div>
+            </div>
+            <input type="number" min={1} max={200} value={build.level} onChange={e=>setBuild(b=>({...b,level:Math.min(200,Math.max(1,parseInt(e.target.value)||1))}))} style={{...fi,width:52,padding:'4px 4px',fontSize:12,textAlign:'center',flexShrink:0}}/>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:4}}>
             {CLASSES.map(c=>(
               <div key={c} onClick={()=>setBuild(b=>({...b,classe:c}))} title={c}
-                style={{display:"flex",alignItems:"center",justifyContent:"center",padding:4,borderRadius:7,border:"1px solid "+(build.classe===c?T.accent:T.border2),background:build.classe===c?T.accentBg:T.surface2,cursor:"pointer",transition:"all 0.12s"}}
+                style={{display:'flex',alignItems:'center',justifyContent:'center',padding:4,borderRadius:7,border:'1px solid '+(build.classe===c?T.accent:T.border2),background:build.classe===c?T.accentBg:T.surface2,cursor:'pointer',transition:'all .12s'}}
                 onMouseEnter={e=>e.currentTarget.style.borderColor=T.accent}
                 onMouseLeave={e=>e.currentTarget.style.borderColor=build.classe===c?T.accent:T.border2}>
-                <img src={CLASS_ICONS[c]} style={{width:24,height:24,objectFit:"contain"}} alt={c} onError={e=>e.target.style.display="none"}/>
+                <img src={CLASS_ICONS[c]} style={{width:22,height:22,objectFit:'contain'}} alt={c} onError={e=>e.target.style.display='none'}/>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Mannequin slots */}
-        <div style={{...card,padding:"14px"}}>
-          <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Équipement</div>
-          {/* Row 1: coiffe amulette cape bouclier */}
-          <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:10}}>
-            {["coiffe","amulette","cape","bouclier"].map(id=><SlotBtn key={id} s={BUILD_SLOTS.find(s=>s.id===id)}/>)}
-          </div>
-          {/* Row 2: arme anneau1 anneau2 */}
-          <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:10}}>
-            {["arme","anneau1","anneau2"].map(id=><SlotBtn key={id} s={BUILD_SLOTS.find(s=>s.id===id)}/>)}
-          </div>
-          {/* Row 3: ceinture bottes */}
-          <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:10}}>
-            {["ceinture","bottes"].map(id=><SlotBtn key={id} s={BUILD_SLOTS.find(s=>s.id===id)}/>)}
-          </div>
-          {/* Row 4: dofus */}
-          <div style={{borderTop:"1px solid "+T.border2,paddingTop:10}}>
-            <div style={{fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:2,marginBottom:8,textAlign:"center"}}>Dofus / Trophées</div>
-            <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
-              {["dofus1","dofus2","dofus3","dofus4","dofus5","dofus6"].map(id=><SlotBtn key={id} s={BUILD_SLOTS.find(s=>s.id===id)}/>)}
-            </div>
+        {/* Doll 4×4 */}
+        <div style={{...cardS,padding:'14px'}}>
+          <div style={{fontSize:9,color:T.accent,letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:10}}>Équipement</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,64px)',gridTemplateRows:'repeat(4,64px)',gap:5,margin:'0 auto',width:'fit-content'}}>
+            {SL.map(s=>{
+              const item=build.slots[s.k];const isAct=activeSlot===s.k;
+              return(
+                <div key={s.k}
+                  className={'bld-slot'+(item?' filled':'')+(isAct?' active':'')}
+                  onClick={()=>{setActiveSlot(s.k);setSearchQ('');setSearchRes([]);}}
+                  onContextMenu={e=>{e.preventDefault();unequipSlot(s.k);}}
+                  onMouseEnter={e=>onSlotEnter(e,item)}
+                  onMouseLeave={onSlotLeave}
+                  title="Clic : sélectionner | Clic droit : retirer">
+                  {item
+                    ?<img className="iimg" src={item.image_urls?.icon||s.ph} alt="" onError={e=>e.target.src=s.ph}/>
+                    :<img className="ph" src={s.ph} alt={s.l}/>}
+                  <span className="slot-lbl">{item?item.name.slice(0,7)+(item.name.length>7?'…':''):s.l}</span>
+                  {item&&<span className="slot-rm" onClick={e=>{e.stopPropagation();unequipSlot(s.k);}}>✕</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Search panel */}
         {activeSlot&&(
-          <div style={{...card,padding:"12px"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.accent}}>{slot?.icon} {slot?.label}</div>
-              <button onClick={()=>{setActiveSlot(null);setSearchQ("");setSearchRes([]);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:13}}>✕</button>
+          <div style={{...cardS,padding:'12px'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+              <span style={{fontSize:11,fontWeight:700,color:T.accent}}>{SL.find(s=>s.k===activeSlot)?.l}</span>
+              <button onClick={()=>{setActiveSlot(null);setSearchQ('');setSearchRes([]);}} style={{background:'transparent',border:'none',color:T.muted,cursor:'pointer',fontSize:14}}>✕</button>
             </div>
-            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder={`Chercher ${slot?.label}...`} style={{...fi,fontSize:12,marginBottom:6}}/>
-            {searching&&<div style={{textAlign:"center",padding:"10px",color:T.muted,fontSize:11}}>⏳ Recherche...</div>}
-            <div style={{maxHeight:200,overflowY:"auto"}}>
+            <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Chercher un item…" style={{...fi,fontSize:12,marginBottom:5}}/>
+            {searching&&<div style={{textAlign:'center',padding:'8px',color:T.muted,fontSize:12}}>⏳</div>}
+            <div style={{maxHeight:210,overflowY:'auto',display:'flex',flexDirection:'column',gap:2}}>
               {searchRes.map(item=>(
-                <div key={item.ankama_id} onClick={()=>equip(item)}
-                  style={{display:"flex",alignItems:"center",gap:7,padding:"6px 8px",borderRadius:7,cursor:"pointer",transition:"all 0.12s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=T.surface2}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{width:28,height:28,borderRadius:5,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
-                    {item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:22,height:22,objectFit:"contain",imageRendering:"pixelated"}} alt="" onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:13}}>{slot?.icon}</span>}
+                <div key={item.ankama_id} className="icard2" onClick={()=>equipItem(item)}>
+                  <div style={{width:30,height:30,borderRadius:5,background:T.surface,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
+                    {item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:24,height:24,objectFit:'contain',imageRendering:'pixelated'}} alt="" onError={e=>e.target.style.display='none'}/>:<span style={{fontSize:12}}>⚔️</span>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:11,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                    <div style={{fontSize:11,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
                     {item.level&&<div style={{fontSize:9,color:T.muted}}>Niv. {item.level}</div>}
                   </div>
-                  <span style={{fontSize:11,color:T.accent}}>+</span>
+                  <span style={{fontSize:12,color:T.accent}}>+</span>
                 </div>
               ))}
-              {!searching&&searchQ.length>=2&&searchRes.length===0&&<div style={{textAlign:"center",padding:"12px",color:T.muted,fontSize:11}}>Aucun résultat</div>}
+              {!searching&&searchQ.length>=2&&searchRes.length===0&&<div style={{textAlign:'center',padding:'12px',color:T.muted,fontSize:11}}>Aucun résultat</div>}
             </div>
           </div>
         )}
       </div>
 
       {/* ── COL 3 : STATS ── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",gap:10,overflowY:"auto"}}>
-        {/* Points de carac */}
-        <div style={{...card,padding:"14px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>Points de caractéristiques</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <div style={{fontSize:12,fontWeight:700,color:remainCarac<0?T.danger:T.success}}>{remainCarac} pts restants</div>
-              <button onClick={()=>setBuild(b=>({...b,carac:{vitalite:0,force:0,intelligence:0,chance:0,agilite:0,sagesse:0}}))} style={{fontSize:10,padding:"3px 8px",borderRadius:5,border:"1px solid "+T.border,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font}}>Reset</button>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:10,overflowY:'auto',minWidth:0}}>
+        {/* Carac */}
+        <div style={{...cardS,padding:'12px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'1rem',padding:'6px 10px',background:T.panel,border:'1px solid '+T.border,borderRadius:8,marginBottom:10,flexWrap:'nowrap'}}>
+            <span style={{fontSize:11,fontWeight:700,color:T.textSub,whiteSpace:'nowrap'}}>Points</span>
+            <div style={{flex:1,height:5,background:T.border2,borderRadius:3,overflow:'hidden',minWidth:50}}>
+              <div style={{height:'100%',width:pct+'%',background:rem<0?T.danger:T.accent,borderRadius:3,transition:'width .3s,background .3s'}}/>
             </div>
+            <span style={{fontSize:14,fontWeight:800,color:rem<0?T.danger:T.accent,whiteSpace:'nowrap'}}>{used} / {maxP}</span>
+            <button onClick={()=>setBuild(b=>({...b,ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0}}))} style={{fontSize:10,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(239,68,68,.25)',background:'rgba(239,68,68,.07)',color:T.danger,cursor:'pointer',fontFamily:T.font,whiteSpace:'nowrap'}}>↺ Reset</button>
           </div>
-          {/* Progress bar */}
-          <div style={{height:4,background:T.border,borderRadius:2,marginBottom:12,overflow:"hidden"}}>
-            <div style={{height:"100%",width:Math.min(100,totalCarac/maxCarac*100)+"%",background:remainCarac<0?T.danger:T.accent,borderRadius:2,transition:"width 0.3s"}}/>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {STAT_KEYS.map(k=>(
-              <div key={k} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 10px",background:T.surface2,borderRadius:8,border:"1px solid "+T.border2}}>
-                <span style={{fontSize:14,flexShrink:0}}>{STAT_ICONS[k]}</span>
-                <div style={{flex:1,fontSize:11,color:T.text,fontWeight:500}}>{STAT_LABELS[k]}</div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <button onClick={()=>setBuild(b=>({...b,carac:{...b.carac,[k]:Math.max(0,b.carac[k]-10)}}))} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.border,background:T.surface,color:T.muted,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                  <input type="number" min={0} value={build.carac[k]} onChange={e=>setBuild(b=>({...b,carac:{...b.carac,[k]:Math.max(0,parseInt(e.target.value)||0)}}))} style={{width:46,background:T.surface,border:"1px solid "+T.border,borderRadius:5,padding:"2px 4px",color:T.accent,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center"}}/>
-                  <button onClick={()=>setBuild(b=>({...b,carac:{...b.carac,[k]:b.carac[k]+10}}))} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+            {CARACS.map(stat=>{
+              const pts=build.ch[stat]||0;const gained=pointsToStat(stat,pts);const nc=costBySlice(stat,pts);
+              return(
+                <div key={stat} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 8px',background:T.panel,border:'1px solid '+T.border,borderRadius:7}}>
+                  <span style={{fontSize:12,width:16,textAlign:'center',flexShrink:0}}>{CARAC_ICONS[stat]}</span>
+                  <span style={{fontSize:10,fontWeight:700,color:T.textSub,width:58,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{stat}</span>
+                  <button className="crbtn" onClick={()=>addCarac(stat,-nc)}>−</button>
+                  <input type="number" min={0} value={pts} onChange={e=>setBuild(b=>({...b,ch:{...b.ch,[stat]:Math.max(0,parseInt(e.target.value)||0)}}))} style={{width:44,padding:'2px 3px',background:T.surface,border:'1px solid '+T.border,borderRadius:5,color:T.accent,fontSize:11,fontWeight:700,outline:'none',fontFamily:T.font,textAlign:'center',boxSizing:'border-box'}}/>
+                  <button className="crbtn" onClick={()=>addCarac(stat,nc)}>+</button>
+                  <span style={{fontSize:11,fontWeight:800,color:SCOL[stat]||T.text,minWidth:24,textAlign:'right',marginLeft:'auto'}}>{gained}</span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* Stats calculées */}
-        <div style={{...card,padding:"14px"}}>
-          <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:12}}>Caractéristiques détaillées</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-            {[
-              {label:"Vitalité",icon:"❤️",val:(500+stats.vitalite*10+build.carac.vitalite*10),color:T.danger},
-              {label:"Force",icon:"💪",val:stats.force+build.carac.force,color:"#f97316"},
-              {label:"Intelligence",icon:"🧠",val:stats.intelligence+build.carac.intelligence,color:T.pvp},
-              {label:"Chance",icon:"🍀",val:stats.chance+build.carac.chance,color:"#22c55e"},
-              {label:"Agilité",icon:"💨",val:stats.agilite+build.carac.agilite,color:"#06b6d4"},
-              {label:"Sagesse",icon:"🌟",val:stats.sagesse,color:"#a78bfa"},
-              {label:"PA",icon:"⚡",val:6+stats.pa,color:"#facc15"},
-              {label:"PM",icon:"🦵",val:3+stats.pm,color:"#4ade80"},
-              {label:"Portée",icon:"🎯",val:stats.portee,color:T.accent},
-              {label:"Pods",icon:"🎒",val:1000+stats.pods,color:T.textSub},
-              {label:"Ini",icon:"🏃",val:stats.ini,color:"#fb923c"},
-              {label:"% Crit",icon:"💥",val:stats.critique+"%",color:"#f43f5e"},
-            ].map(s=>(
-              <div key={s.label} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",background:T.surface2,borderRadius:7,border:"1px solid "+T.border2}}>
-                <span style={{fontSize:13}}>{s.icon}</span>
-                <div style={{flex:1,fontSize:11,color:T.muted}}>{s.label}</div>
-                <span style={{fontSize:13,fontWeight:700,color:s.color}}>{s.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Résistances & dommages */}
-        <div style={{...card,padding:"14px"}}>
-          <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Dommages & Résistances</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <div>
-              <div style={{fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Dommages</div>
-              {[["🟤","Terre",stats.dom_terre],["🔴","Feu",stats.dom_feu],["🔵","Eau",stats.dom_eau],["🟢","Air",stats.dom_air],["⚪","Neutre",stats.dom_neutre]].map(([ic,el,v])=>(
-                <div key={el} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:6,marginBottom:3,background:T.surface2}}>
-                  <span style={{fontSize:11}}>{ic}</span>
-                  <span style={{flex:1,fontSize:10,color:T.muted}}>{el}</span>
-                  <span style={{fontSize:11,fontWeight:700,color:v>0?T.warning:T.text}}>{v}</span>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div style={{fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6}}>Résistances</div>
-              {[["🟤","Terre",stats.res_terre],["🔴","Feu",stats.res_feu],["🔵","Eau",stats.res_eau],["🟢","Air",stats.res_air],["⚪","Neutre",stats.res_neutre]].map(([ic,el,v])=>(
-                <div key={el} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:6,marginBottom:3,background:T.surface2}}>
-                  <span style={{fontSize:11}}>{ic}</span>
-                  <span style={{flex:1,fontSize:10,color:T.muted}}>{el}</span>
-                  <span style={{fontSize:11,fontWeight:700,color:v>0?T.success:T.text}}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Combat */}
-        <div style={{...card,padding:"14px",marginBottom:10}}>
-          <div style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Combat</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-            {[["⚔️","Tacle",stats.tacle],["🏃","Fuite",stats.fuite],["🛡️","Esquive PA",stats.esquive_pa],["🛡️","Esquive PM",stats.esquive_pm],["↩️","Retrait PA",stats.retrait_pa],["↩️","Retrait PM",stats.retrait_pm]].map(([ic,l,v])=>(
-              <div key={l} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 9px",background:T.surface2,borderRadius:6,border:"1px solid "+T.border2}}>
-                <span style={{fontSize:12}}>{ic}</span>
-                <span style={{flex:1,fontSize:10,color:T.muted}}>{l}</span>
-                <span style={{fontSize:12,fontWeight:700,color:T.text}}>{v}</span>
-              </div>
-            ))}
+        {/* Stats table — 2 col like Phaeris */}
+        <div style={{...cardS,padding:'12px'}}>
+          <div style={{fontSize:9,color:T.accent,letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:8}}>📊 Caractéristiques détaillées</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1px 1fr',gap:0,alignItems:'start'}}>
+            {/* Left */}
+            <table className="bstbl">
+              <thead><tr>
+                <th>Stat</th><th>Base</th><th>Carac</th><th>Équip</th><th>Total</th>
+              </tr></thead>
+              <tbody>
+                {statRows.map((row,i)=>{
+                  if(!row)return <tr key={i} className="sp"><td colSpan={5}></td></tr>;
+                  const {nm,ic,bv,hasCh}=row;
+                  const cv=hasCh?Math.round(pointsToStat(nm,build.ch[nm]||0)):0;
+                  const tot=stats[nm]||0;const ev=tot-bv-cv;
+                  const col=SCOL[nm]||T.text;
+                  return(<tr key={nm}>
+                    <td style={{...tdBase,textAlign:'left',color:T.textSub,fontSize:10}}>
+                      <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span>
+                    </td>
+                    <td style={{...tdBase,color:T.muted}}>{bv||''}</td>
+                    <td style={{...tdBase,color:cv>0?col:T.muted}}>{cv>0?'+'+cv:''}</td>
+                    <td style={{...tdBase,color:ev>0?col:ev<0?T.danger:T.muted}}>{ev!==0?(ev>0?'+':'')+ev:''}</td>
+                    <td style={{...tdBase,color:col,fontWeight:800,fontSize:13}}>{tot}</td>
+                  </tr>);
+                })}
+              </tbody>
+            </table>
+            {/* Sep */}
+            <div style={{background:T.border,minHeight:'100%',margin:'0 8px',alignSelf:'stretch'}}/>
+            {/* Right */}
+            <table className="bstbl">
+              <thead><tr>
+                <th>Stat</th><th>Base</th><th>Équip</th><th>Total</th>
+              </tr></thead>
+              <tbody>
+                {statRows2.map((row,i)=>{
+                  if(!row)return <tr key={i} className="sp"><td colSpan={4}></td></tr>;
+                  const {nm,ic,bv}=row;
+                  const tot=stats[nm]||0;const ev=tot-bv;
+                  const isRes=nm.includes('Résistance');
+                  const col=isRes?(tot>0?'#4ade80':tot<0?'#ef4444':T.muted):SCOL[nm]||T.text;
+                  return(<tr key={nm}>
+                    <td style={{...tdBase,textAlign:'left',color:T.textSub,fontSize:10}}>
+                      <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span>
+                    </td>
+                    <td style={{...tdBase,color:T.muted}}>{bv||''}</td>
+                    <td style={{...tdBase,color:ev>0?col:ev<0?'#ef4444':T.muted}}>{ev!==0?(ev>0?'+':'')+ev:''}</td>
+                    <td style={{...tdBase,color:col,fontWeight:800,fontSize:13}}>{tot||''}</td>
+                  </tr>);
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-      {toast&&<div style={{position:"fixed",bottom:20,right:20,background:toast.type==="err"?"#dc2626":T.accent,color:"#fff",padding:"9px 15px",borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:300,fontFamily:T.font}}>{toast.type==="err"?"❌":"✅"} {toast.msg}</div>}
-      {/* ── TOOLTIP ITEM ── */}
-      {tooltip.visible&&tooltip.item&&(()=>{
-        const it=tooltip.item;
-        const effs=it.effects||[];
-        const setName=it.parent_set?.name;
-        const typeLabel=it.type?.name||"";
+
+      {/* ── TOOLTIP ── */}
+      {tip.vis&&tip.item&&(()=>{
+        const it=tip.item;const effs=it.effects||[];const setNm=it.parent_set?.name;
         return(
-          <div style={{position:"fixed",left:tooltip.x,top:Math.min(tooltip.y,window.innerHeight-400),zIndex:999,pointerEvents:"none",width:270,background:"#12141c",border:"2px solid #2a2d3d",borderRadius:12,boxShadow:"0 20px 60px rgba(0,0,0,0.85)",overflow:"hidden"}}>
-            {/* Header */}
-            <div style={{padding:"12px 14px 10px",borderBottom:"1px solid #1e2130"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                {it.image_urls?.icon&&<img src={it.image_urls.icon} style={{width:42,height:42,objectFit:"contain",imageRendering:"pixelated",flexShrink:0}} alt=""/>}
+          <div style={{position:'fixed',left:tip.x,top:Math.min(tip.y,window.innerHeight-440),zIndex:9999,pointerEvents:'none',width:255,background:T.dark?'#1a1d27':'#f5f6fa',border:'1px solid '+T.accent,borderRadius:10,boxShadow:'0 8px 30px rgba(0,0,0,.65)',animation:'tipFade .15s ease-out',overflow:'hidden'}}>
+            <div style={{padding:'10px 12px 8px',borderBottom:'1px solid '+T.border2}}>
+              <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:4}}>
+                {it.image_urls?.icon&&<img src={it.image_urls.icon} style={{width:38,height:38,objectFit:'contain',imageRendering:'pixelated',flexShrink:0}} alt=""/>}
                 <div>
-                  <div style={{fontWeight:700,fontSize:14,color:"#e4e6ef",lineHeight:1.2}}>{it.name}</div>
-                  <div style={{fontSize:11,color:"#5b6cf0",marginTop:2}}>{typeLabel}</div>
+                  <div style={{fontWeight:800,fontSize:13,color:T.text,lineHeight:1.2}}>{it.name}</div>
+                  <div style={{fontSize:10,color:T.accent,marginTop:2}}>{it.type?.name||''}</div>
                 </div>
               </div>
-              {it.level&&<div style={{fontSize:12,color:"#5b8cf0",fontWeight:600}}>Niveau {it.level}</div>}
+              {it.level&&<div style={{fontSize:11,color:T.accent,fontWeight:700}}>Niveau {it.level}</div>}
             </div>
-            {/* Stats */}
-            <div style={{padding:"10px 14px",maxHeight:280,overflowY:"auto"}}>
+            <div style={{padding:'8px 12px',maxHeight:260,overflowY:'auto'}}>
               {effs.length>0
-                ?effs.map((eff,i)=>{
-                  const col=statColor(eff);
-                  return(<div key={i} style={{fontSize:12,color:col,lineHeight:1.7,fontWeight:500}}>{formatEff(eff)}</div>);
-                })
-                :<div style={{fontSize:11,color:"#585c72",fontStyle:"italic"}}>Aucun effet connu</div>
-              }
+                ?effs.map((eff,i)=><div key={i} style={{fontSize:11,color:effColor(eff),lineHeight:1.75,fontWeight:600}}>{fmtEff(eff)}</div>)
+                :<div style={{fontSize:10,color:T.muted,fontStyle:'italic'}}>Aucun effet connu</div>}
             </div>
-            {/* Set */}
-            {setName&&<div style={{padding:"8px 14px",borderTop:"1px solid #1e2130",fontSize:11,color:"#5b6cf0",display:"flex",alignItems:"center",gap:5}}>
-              <span>🔗</span><span style={{fontStyle:"italic"}}>{setName}</span>
-            </div>}
-            {/* Hint */}
-            <div style={{padding:"6px 14px",background:"#0e1018",borderTop:"1px solid #1e2130",fontSize:9,color:"#3a3d50",textAlign:"center",letterSpacing:0.5}}>
-              CLIC : sélectionner &nbsp;|&nbsp; CLIC DROIT : retirer
-            </div>
+            {setNm&&<div style={{padding:'6px 12px',borderTop:'1px solid '+T.border2,fontSize:10,color:T.accent,fontStyle:'italic'}}>🔗 {setNm}</div>}
+            <div style={{padding:'4px 12px',background:T.panel,borderTop:'1px solid '+T.border2,fontSize:9,color:T.muted,textAlign:'center',letterSpacing:.5}}>CLIC : équiper &nbsp;|&nbsp; CLIC DROIT : retirer</div>
           </div>
         );
       })()}
+
+      {toast&&<div style={{position:'fixed',bottom:20,right:20,background:toast.type==='err'?'#dc2626':T.accent,color:'#fff',padding:'9px 15px',borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:300,fontFamily:T.font}}>{toast.type==='err'?'❌':'✅'} {toast.msg}</div>}
     </div>
   );
 }
