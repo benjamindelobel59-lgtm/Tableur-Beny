@@ -292,6 +292,7 @@ function PartagesTab({ session, characters, showToast }) {
   const [showModal,setShowModal]           = useState(false);
   const [viewShare,setViewShare]           = useState(null);
   const [viewChars,setViewChars]           = useState([]);
+  const [viewCraftLists,setViewCraftLists] = useState([]);
   const [viewLoading,setViewLoading]       = useState(false);
   const [shareType,setShareType]           = useState("all");
   const [shareEmail,setShareEmail]         = useState("");
@@ -319,11 +320,17 @@ function PartagesTab({ session, characters, showToast }) {
   const deleteShare = async(id)=>{ await supabase.from("shares").delete().eq("id",id); showToast("Partage supprimé"); loadMyShares(); };
 
   const openReceivedShare = async(share)=>{
-    setViewShare(share); setViewChars([]); setViewLoading(true);
-    let query = supabase.from("characters").select("*").eq("user_id",share.owner_id);
-    if(share.share_type==="compte") query=query.eq("compte",share.compte_name);
-    const {data} = await query.order("created_at",{ascending:true});
-    setViewChars(data||[]); setViewLoading(false);
+    setViewShare(share); setViewChars([]); setViewCraftLists([]); setViewLoading(true);
+    if(share.share_type==="craft"){
+      const {data} = await supabase.from("craft_lists").select("*").eq("user_id",share.owner_id).order("created_at",{ascending:false});
+      setViewCraftLists(data||[]);
+    } else {
+      let query = supabase.from("characters").select("*").eq("user_id",share.owner_id);
+      if(share.share_type==="compte") query=query.eq("compte",share.compte_name);
+      const {data} = await query.order("created_at",{ascending:true});
+      setViewChars(data||[]);
+    }
+    setViewLoading(false);
   };
 
   const ShareTypeBtn = ({id})=>{
@@ -336,6 +343,7 @@ function PartagesTab({ session, characters, showToast }) {
 
   if(viewShare){
     const typeInfo=SHARE_TYPE_LABELS[viewShare.share_type];
+    const isCraft = viewShare.share_type==="craft";
     return (
       <div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
@@ -345,41 +353,139 @@ function PartagesTab({ session, characters, showToast }) {
             <div style={{fontSize:11,color:T.muted,marginTop:1}}>Partagé par <span style={{color:T.accent}}>{viewShare.owner_email}</span></div>
           </div>
         </div>
-        {viewLoading?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>⏳ Chargement...</div>:viewChars.length===0?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>🗡️ Aucun personnage</div>:(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:10}}>
-            {viewChars.map((char)=>{
-              const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;
-              const sc=SURCATS.find(s=>s.id===(char.surcat||"PVM"))||SURCATS[2];
-              return (
-                <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,overflow:"hidden"}}>
-                  <div style={{height:2,background:"linear-gradient(90deg,"+catColor+","+catColor+"30)"}} />
-                  <div style={{padding:"12px"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
-                      <div style={{width:38,height:38,borderRadius:10,background:catColor+"12",border:"1px solid "+catColor+"28",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        <img src={CLASS_ICONS[char.classe]} style={{width:30,height:30,objectFit:"contain"}} alt="" onError={e=>e.target.style.display="none"} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{fontWeight:700,fontSize:13,color:T.text}}>{char.nom}</span>
-                          <span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:20,background:sc.color+"18",color:sc.color}}>{sc.icon} {sc.label}</span>
+
+        {viewLoading ? (
+          <div style={{textAlign:"center",padding:"60px",color:T.muted}}>⏳ Chargement...</div>
+        ) : isCraft ? (
+          /* ── Vue Craft Lists ── */
+          viewCraftLists.length===0 ? (
+            <div style={{textAlign:"center",padding:"60px",color:T.muted}}>
+              <div style={{fontSize:36,marginBottom:8,opacity:0.4}}>⚗️</div>
+              <div>Aucune liste de craft sauvegardée</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {viewCraftLists.map(list=>{
+                const items = list.items||[];
+                // Aggregate ingredients
+                const ingMap={};
+                for(const {item,qty} of items){
+                  for(const r of (item.recipe||[])){
+                    const key=r.ankama_id??r.name;
+                    if(!ingMap[key]) ingMap[key]={name:r.name,image_url:r.image_url,qty:0};
+                    ingMap[key].qty+=r.quantity*qty;
+                  }
+                }
+                const ings=Object.values(ingMap).sort((a,b)=>a.name.localeCompare(b.name));
+                return (
+                  <div key={list.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:14,overflow:"hidden"}}>
+                    <div style={{height:2,background:"linear-gradient(90deg,"+T.accent+","+T.accent2+")"}} />
+                    <div style={{padding:"14px 16px"}}>
+                      {/* List header */}
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                        <div style={{width:38,height:38,borderRadius:9,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>⚗️</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:700,fontSize:14,color:T.text}}>{list.name}</div>
+                          <div style={{fontSize:10,color:T.muted,marginTop:1}}>
+                            {items.length} item{items.length>1?"s":""} • {new Date(list.created_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}
+                          </div>
                         </div>
-                        <div style={{fontSize:10,color:T.muted,marginTop:1}}>{char.compte}</div>
                       </div>
-                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:5,background:ETAT_COLORS[char.etat]+"15",color:ETAT_COLORS[char.etat],fontWeight:600}}>{char.etat}</span>
-                    </div>
-                    <div style={{display:"flex",gap:5}}>
-                      {[{l:"Classe",v:char.classe,c:T.textSub},{l:"Level",v:char.level,c:T.accent},{l:"Max",v:char.level_max,c:T.accent2}].map(s=>(
-                        <div key={s.l} style={{flex:1,background:T.dimmer,borderRadius:6,padding:"4px 6px",textAlign:"center",border:"1px solid "+T.border}}>
-                          <div style={{fontSize:7,color:T.muted,marginBottom:1}}>{s.l}</div>
-                          <div style={{fontSize:11,fontWeight:600,color:s.c}}>{s.v}</div>
+
+                      {/* Items */}
+                      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:ings.length>0?12:0}}>
+                        {items.map(({item,qty})=>(
+                          <div key={item.ankama_id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",background:T.dimmer,borderRadius:9,border:"1px solid "+T.border}}>
+                            <div style={{width:30,height:30,borderRadius:7,background:T.surface,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                              {item.image_url
+                                ? <img src={item.image_url} alt={item.name} style={{width:24,height:24,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} />
+                                : <span style={{fontSize:14}}>⚗️</span>}
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontWeight:600,fontSize:12,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                              {item.level&&<div style={{fontSize:9,color:T.muted}}>Niv. {item.level}</div>}
+                            </div>
+                            <div style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 10px",fontWeight:700,color:T.accent,fontSize:13,flexShrink:0}}>×{qty}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Ressources totales */}
+                      {ings.length>0&&(
+                        <div style={{background:T.dimmer,borderRadius:10,border:"1px solid "+T.border,overflow:"hidden"}}>
+                          <div style={{padding:"8px 12px",borderBottom:"1px solid "+T.border,display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{fontSize:10,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700}}>🧮 Ressources totales</span>
+                            <span style={{fontSize:9,color:T.muted,background:T.surface,borderRadius:4,padding:"1px 6px",border:"1px solid "+T.border}}>{ings.length} type{ings.length>1?"s":""}</span>
+                          </div>
+                          {/* Table header */}
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 80px",padding:"5px 12px",borderBottom:"1px solid "+T.border}}>
+                            {["Ressource","Quantité"].map((h,i)=>(
+                              <div key={h} style={{fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1,fontWeight:700,textAlign:i===0?"left":"center"}}>{h}</div>
+                            ))}
+                          </div>
+                          <div style={{maxHeight:200,overflowY:"auto"}}>
+                            {ings.map((ing,i)=>(
+                              <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px",padding:"7px 12px",borderBottom:"1px solid "+T.border+"44",alignItems:"center"}}>
+                                <div style={{display:"flex",alignItems:"center",gap:7}}>
+                                  <div style={{width:22,height:22,borderRadius:5,background:T.surface,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+                                    {ing.image_url
+                                      ? <img src={ing.image_url} alt={ing.name} style={{width:18,height:18,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} />
+                                      : <span style={{fontSize:11}}>🌿</span>}
+                                  </div>
+                                  <span style={{fontSize:11,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ing.name}</span>
+                                </div>
+                                <div style={{textAlign:"center"}}>
+                                  <span style={{fontSize:12,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:5,padding:"1px 8px"}}>{ing.qty}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          /* ── Vue Personnages ── */
+          viewChars.length===0 ? <div style={{textAlign:"center",padding:"60px",color:T.muted}}>🗡️ Aucun personnage</div> : (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:10}}>
+              {viewChars.map((char)=>{
+                const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;
+                const sc=SURCATS.find(s=>s.id===(char.surcat||"PVM"))||SURCATS[2];
+                return (
+                  <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,overflow:"hidden"}}>
+                    <div style={{height:2,background:"linear-gradient(90deg,"+catColor+","+catColor+"30)"}} />
+                    <div style={{padding:"12px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
+                        <div style={{width:38,height:38,borderRadius:10,background:catColor+"12",border:"1px solid "+catColor+"28",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          <img src={CLASS_ICONS[char.classe]} style={{width:30,height:30,objectFit:"contain"}} alt="" onError={e=>e.target.style.display="none"} />
+                        </div>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",alignItems:"center",gap:5}}>
+                            <span style={{fontWeight:700,fontSize:13,color:T.text}}>{char.nom}</span>
+                            <span style={{fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:20,background:sc.color+"18",color:sc.color}}>{sc.icon} {sc.label}</span>
+                          </div>
+                          <div style={{fontSize:10,color:T.muted,marginTop:1}}>{char.compte}</div>
+                        </div>
+                        <span style={{fontSize:9,padding:"2px 7px",borderRadius:5,background:ETAT_COLORS[char.etat]+"15",color:ETAT_COLORS[char.etat],fontWeight:600}}>{char.etat}</span>
+                      </div>
+                      <div style={{display:"flex",gap:5}}>
+                        {[{l:"Classe",v:char.classe,c:T.textSub},{l:"Level",v:char.level,c:T.accent},{l:"Max",v:char.level_max,c:T.accent2}].map(s=>(
+                          <div key={s.l} style={{flex:1,background:T.dimmer,borderRadius:6,padding:"4px 6px",textAlign:"center",border:"1px solid "+T.border}}>
+                            <div style={{fontSize:7,color:T.muted,marginBottom:1}}>{s.l}</div>
+                            <div style={{fontSize:11,fontWeight:600,color:s.c}}>{s.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     );
@@ -441,6 +547,7 @@ function PartagesTab({ session, characters, showToast }) {
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
                     <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modifiable":"👁️ Lecture"}</span>
                     {s.share_type!=="craft"&&<button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 8px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Voir</button>}
+                    {s.share_type==="craft"&&<button onClick={()=>openReceivedShare(s)} style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:6,padding:"2px 8px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>⚗️ Voir</button>}
                   </div>
                 </div>
               );})}
