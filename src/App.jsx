@@ -665,7 +665,7 @@ function AppInner({ darkMode, toggleTheme }) {
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
                   <select value={char.etat} onChange={e=>handleEtatChange(char.id,e.target.value)} style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:7,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,outline:"none",fontFamily:T.font,cursor:"pointer"}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select>
                   <select value={char.surcat||"PVM"} onChange={e=>handleSurcatChange(char.id,e.target.value)} style={{background:T.surface2,border:"1px solid "+T.border2,borderRadius:7,padding:"5px 6px",color:T.text,fontWeight:600,fontSize:11,outline:"none",fontFamily:T.font,cursor:"pointer"}}><option value="PVM">🐉 PVM</option><option value="PVP">🏆 PVP</option></select>
-                  <div style={{background:char.frigost==="Frigost 2"?T.accentBg:T.surface2,border:"1px solid "+(char.frigost==="Frigost 2"?T.accentBorder:T.border2),borderRadius:7,padding:"5px 7px",fontSize:11,color:char.frigost==="Frigost 2"?T.accent:T.muted,fontWeight:600,whiteSpace:"nowrap"}}>{char.frigost==="Frigost 2"?"❄️ F2":"🌍"}</div>
+                  <div style={{background:char.frigost!=="Continent"?T.accentBg:T.surface2,border:"1px solid "+(char.frigost!=="Continent"?T.accentBorder:T.border2),borderRadius:7,padding:"5px 7px",fontSize:11,color:char.frigost!=="Continent"?T.accent:T.muted,fontWeight:600,whiteSpace:"nowrap"}}>{char.frigost!=="Continent"?`❄️ ${char.frigost==="Frigost 2"?"F2":char.frigost}`:"🌍"}</div>
                 </div>
               </div>
             </div>
@@ -685,7 +685,19 @@ function AppInner({ darkMode, toggleTheme }) {
             <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>État</label><select value={form.etat} onChange={e=>setForm(p=>({...p,etat:e.target.value}))} style={{...fi,cursor:"pointer"}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select></div>
             <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>Level actuel</label><input type="number" min={1} max={200} value={form.level} onChange={e=>setForm(p=>({...p,level:parseInt(e.target.value)||1}))} style={fi}/></div>
             <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>Level max</label><input type="number" min={1} max={200} value={form.level_max} onChange={e=>setForm(p=>({...p,level_max:parseInt(e.target.value)||1}))} style={fi}/></div>
-            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:7,fontWeight:500}}>Zone</label><div style={{display:"flex",gap:7}}>{["Continent","Frigost 2"].map(z=>(<button key={z} onClick={()=>setForm(p=>({...p,frigost:z}))} style={{flex:1,padding:"8px",borderRadius:9,border:"2px solid "+(form.frigost===z?T.accent:T.border),background:form.frigost===z?T.accentBg:T.surface2,color:form.frigost===z?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:600}}>{z==="Frigost 2"?"❄️ Frigost 2":"🌍 Continent"}</button>))}</div></div>
+            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:7,fontWeight:500}}>Zone</label>
+              <div style={{display:"flex",gap:7,marginBottom:form.frigost!=="Continent"?8:0}}>
+                <button onClick={()=>setForm(p=>({...p,frigost:"Continent"}))} style={{flex:1,padding:"8px",borderRadius:9,border:"2px solid "+(form.frigost==="Continent"?T.accent:T.border),background:form.frigost==="Continent"?T.accentBg:T.surface2,color:form.frigost==="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:600}}>🌍 Continent</button>
+                <button onClick={()=>setForm(p=>({...p,frigost:p.frigost==="Continent"?"Ben":p.frigost}))} style={{flex:1,padding:"8px",borderRadius:9,border:"2px solid "+(form.frigost!=="Continent"?T.accent:T.border),background:form.frigost!=="Continent"?T.accentBg:T.surface2,color:form.frigost!=="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:600}}>❄️ Frigost 2</button>
+              </div>
+              {form.frigost!=="Continent"&&(
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",padding:"9px 10px",background:T.accentBg,borderRadius:8,border:"1px solid "+T.accentBorder}}>
+                  {["Ben","Obsi","Tengu","Korri","Kolloso","Glour","F3"].map(z=>(
+                    <button key={z} onClick={()=>setForm(p=>({...p,frigost:z}))} style={{padding:"4px 10px",borderRadius:6,border:"1px solid "+(form.frigost===z?T.accent:T.accentBorder),background:form.frigost===z?T.accent:T.surface,color:form.frigost===z?"#fff":T.accent,cursor:"pointer",fontFamily:T.font,fontSize:11,fontWeight:form.frigost===z?700:500,transition:"all 0.15s"}}>{z}</button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div style={{display:"flex",gap:7,marginTop:16}}>
             <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"10px",borderRadius:9,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13}}>Annuler</button>
