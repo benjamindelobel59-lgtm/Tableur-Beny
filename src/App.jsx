@@ -618,7 +618,7 @@ function CraftTab({ session }) {
   const [searchType,  setSearchType]  = useState("equipment");
   const [results,     setResults]     = useState([]);
   const [searching,   setSearching]   = useState(false);
-  const lsKey      = `craft_session_${session.user.id}`;
+  const lsKey      = `craft_session_v2_${session.user.id}`;
   const lsBanqKey  = `craft_banque_${session.user.id}`;
   const lsNameKey  = `craft_name_${session.user.id}`;
 
@@ -646,7 +646,11 @@ function CraftTab({ session }) {
     setTimeout(()=>setCraftToast(null), 2800);
   };
 
-  useEffect(() => { loadSavedLists(); }, []);
+  useEffect(() => {
+    // Supprime l'ancien cache DofusDU (v1)
+    localStorage.removeItem(`craft_session_${session.user.id}`);
+    loadSavedLists();
+  }, []);
 
   const loadSavedLists = async () => {
     const {data} = await supabase.from("craft_lists").select("*").eq("user_id",session.user.id).order("created_at",{ascending:false});
