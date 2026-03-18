@@ -511,10 +511,14 @@ function CraftTab({ session }) {
   const [searchType,  setSearchType]  = useState("equipment");
   const [results,     setResults]     = useState([]);
   const [searching,   setSearching]   = useState(false);
-  const [craftItems,  setCraftItems]  = useState([]); // [{item:{ankama_id,name,level,image_url,subtype,recipe[]},qty}]
+  const lsKey      = `craft_session_${session.user.id}`;
+  const lsBanqKey  = `craft_banque_${session.user.id}`;
+  const lsNameKey  = `craft_name_${session.user.id}`;
+
+  const [craftItems,  setCraftItems]  = useState(() => { try { const r=localStorage.getItem(lsKey);      return r?JSON.parse(r):[]; }      catch{return [];} });
   const [savedLists,  setSavedLists]  = useState([]);
-  const [banque,      setBanque]      = useState({}); // { [ankama_id|name]: qty_en_banque }
-  const [listName,    setListName]    = useState("Ma liste de craft");
+  const [banque,      setBanque]      = useState(() => { try { const r=localStorage.getItem(lsBanqKey);  return r?JSON.parse(r):{};  }     catch{return {};} });
+  const [listName,    setListName]    = useState(() => { try { const r=localStorage.getItem(lsNameKey);  return r||"Ma liste de craft"; }   catch{return "Ma liste de craft";} });
   const [saving,      setSaving]      = useState(false);
   const [loadingId,   setLoadingId]   = useState(null);
   const [ingCache,    setIngCache]    = useState({});
@@ -522,8 +526,13 @@ function CraftTab({ session }) {
   const [deleteId,    setDeleteId]    = useState(null);
   const [craftToast,  setCraftToast]  = useState(null);
   const [showSaved,   setShowSaved]   = useState(true);
-  const [updateId,    setUpdateId]    = useState(null); // id of list being updated
+  const [updateId,    setUpdateId]    = useState(null);
   const debounceRef = useRef(null);
+
+  // Auto-persist — sauvegarde silencieuse a chaque modification
+  useEffect(()=>{ try{localStorage.setItem(lsKey,     JSON.stringify(craftItems));}catch{} }, [craftItems]);
+  useEffect(()=>{ try{localStorage.setItem(lsBanqKey, JSON.stringify(banque));    }catch{} }, [banque]);
+  useEffect(()=>{ try{localStorage.setItem(lsNameKey, listName);                  }catch{} }, [listName]);
 
   const showCraftToast = (msg, type="success") => {
     setCraftToast({msg,type});
