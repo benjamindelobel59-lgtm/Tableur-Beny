@@ -275,6 +275,9 @@ function CraftTab({ session }) {
   const [saving,setSaving]=useState(false);const [loadingId,setLoadingId]=useState(null);const [ingCache,setIngCache]=useState({});
   const [activeList,setActiveList]=useState(null);const [deleteId,setDeleteId]=useState(null);const [updateId,setUpdateId]=useState(null);
   const [toast,setToast]=useState(null);const [addQty,setAddQty]=useState(1);
+  const [subCraftsEnabled,setSubCraftsEnabled]=useState(false);
+  const [subCraftCache,setSubCraftCache]=useState({});
+  const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
   const debounceRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(craftItems));}catch{}},[craftItems]);
   useEffect(()=>{try{localStorage.setItem(lsBanqKey,JSON.stringify(banque));}catch{}},[banque]);
@@ -289,10 +292,75 @@ function CraftTab({ session }) {
   const removeItem=(ankama_id)=>setCraftItems(prev=>prev.filter(ci=>ci.item.ankama_id!==ankama_id));
   const updateQty=(ankama_id,qty)=>{if(qty<=0)removeItem(ankama_id);else setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===ankama_id?{...ci,qty}:ci));};
   const clearList=()=>{setCraftItems([]);setActiveList(null);setListName("Mon atelier");setUpdateId(null);};
-  const totalIngredients=()=>{const map={};for(const{item,qty}of craftItems)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!map[k])map[k]={...r,qty:0,key:k};map[k].qty+=r.quantity*qty;}return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));};
   const saveList=async()=>{if(!listName.trim())return showToast("Donne un nom !","err");if(craftItems.length===0)return showToast("Ajoute des items d'abord !","err");setSaving(true);if(updateId){const{error}=await supabase.from("craft_lists").update({name:listName.trim(),items:craftItems,updated_at:new Date().toISOString()}).eq("id",updateId);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast("Mise à jour ✓");}else{const{error}=await supabase.from("craft_lists").insert([{user_id:session.user.id,name:listName.trim(),items:craftItems}]);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast("Sauvegardée ✓");}loadSavedLists();};
   const deleteList=async(id)=>{await supabase.from("craft_lists").delete().eq("id",id);showToast("Liste supprimée");if(activeList?.id===id)clearList();setDeleteId(null);loadSavedLists();};
   const loadList=(list)=>{setActiveList(list);setCraftItems(list.items||[]);setListName(list.name);setUpdateId(list.id);showToast(`"${list.name}" chargée ✓`);};
+  // ── Fetch recipe for a single ingredient id ──
+  const fetchRecipeForId=async(ankama_id)=>{
+    const ck=`recipe_${ankama_id}`;
+    if(subCraftCache[ck]!==undefined)return subCraftCache[ck];
+    const{data:recipeRow}=await supabase.from("recipes").select("*").eq("Item_Id",ankama_id).maybeSingle();
+    if(!recipeRow?.Ingredients){setSubCraftCache(p=>({...p,[ck]:null}));return null;}
+    const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));
+    const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));
+    const recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,quantity:r.quantity}));
+    setSubCraftCache(p=>({...p,[ck]:recipe}));
+    return recipe;
+  };
+
+  // ── Recursively build sub-craft tree ──
+  const buildSubTree=async(ingredients,qty,depth=0)=>{
+    if(depth>5)return ingredients.map(r=>({...r,qty:r.quantity*qty,subRecipe:null}));
+    return Promise.all(ingredients.map(async(r)=>{
+      const sub=await fetchRecipeForId(r.ankama_id);
+      return{...r,qty:r.quantity*qty,subRecipe:sub?await buildSubTree(sub,r.quantity*qty,depth+1):null};
+    }));
+  };
+
+  // ── Flatten sub-craft tree to leaf resources ──
+  const flattenToLeaves=(nodes,map={})=>{
+    for(const node of nodes){
+      if(node.subRecipe&&node.subRecipe.length>0){flattenToLeaves(node.subRecipe,map);}
+      else{const k=node.ankama_id??node.name;if(!map[k])map[k]={...node,qty:0,key:k};map[k].qty+=node.qty;}
+    }
+    return map;
+  };
+
+  const [subTrees,setSubTrees]=useState({});
+
+  const resolveAllSubCrafts=async()=>{
+    setResolvingSubCrafts(true);
+    const newTrees={};
+    for(const{item,qty}of craftItems){
+      if(!item.recipe?.length){newTrees[item.ankama_id]=[];continue;}
+      const tree=await buildSubTree(item.recipe,qty,0);
+      newTrees[item.ankama_id]=tree;
+    }
+    setSubTrees(newTrees);
+    setResolvingSubCrafts(false);
+  };
+
+  // Toggle sub-crafts
+  const toggleSubCrafts=async()=>{
+    if(!subCraftsEnabled){await resolveAllSubCrafts();setSubCraftsEnabled(true);}
+    else{setSubCraftsEnabled(false);}
+  };
+
+  // Re-resolve when craftItems change and sub-crafts are enabled
+  useEffect(()=>{if(subCraftsEnabled)resolveAllSubCrafts();},[craftItems]);
+
+  const totalIngredients=()=>{
+    if(subCraftsEnabled&&Object.keys(subTrees).length>0){
+      const map={};
+      for(const{item}of craftItems){
+        const tree=subTrees[item.ankama_id]||[];
+        flattenToLeaves(tree,map);
+      }
+      return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+    }
+    const map={};for(const{item,qty}of craftItems)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!map[k])map[k]={...r,qty:0,key:k};map[k].qty+=r.quantity*qty;}return Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+  };
+
   const ingredients=totalIngredients();
   const bv=(key)=>Math.max(0,parseInt(banque[key]||0,10)||0);
   const pb={borderRight:"1px solid "+T.border};
@@ -372,6 +440,7 @@ function CraftTab({ session }) {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {craftView==="total"&&ingredients.length>0&&<button onClick={()=>setBanque({})} style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"1px solid "+T.border,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font}}>Réinit. banque</button>}
+            {craftItems.length>0&&<button onClick={toggleSubCrafts} disabled={resolvingSubCrafts} style={{fontSize:11,padding:"4px 11px",borderRadius:6,border:"1px solid "+(subCraftsEnabled?T.accentBorder:T.border),background:subCraftsEnabled?T.accentBg:T.surface2,color:subCraftsEnabled?T.accent:T.muted,cursor:resolvingSubCrafts?"wait":"pointer",fontFamily:T.font,fontWeight:subCraftsEnabled?700:400,display:"flex",alignItems:"center",gap:4}}>{resolvingSubCrafts?"⏳ Calcul...":"⚗️ Sous-crafts"}{subCraftsEnabled&&!resolvingSubCrafts&&<span style={{fontSize:9,background:T.accent,color:"#fff",borderRadius:10,padding:"1px 5px",fontWeight:700}}>ON</span>}</button>}
             <div style={{display:"flex",background:T.surface2,borderRadius:7,padding:3,border:"1px solid "+T.border2}}>
               {[["par_craft","Par craft"],["total","Total global"]].map(([id,label])=>(<button key={id} onClick={()=>setCraftView(id)} style={{padding:"5px 11px",borderRadius:5,border:"none",background:craftView===id?T.accent:"transparent",color:craftView===id?"#fff":T.muted,fontWeight:craftView===id?700:400,cursor:"pointer",fontFamily:T.font,fontSize:12,transition:"all 0.15s"}}>{label}</button>))}
             </div>
@@ -381,26 +450,63 @@ function CraftTab({ session }) {
           {craftItems.length===0?(<div style={{textAlign:"center",padding:"55px 18px",color:T.muted}}><div style={{fontSize:36,marginBottom:10,opacity:0.25}}>⚗️</div><div style={{fontSize:14,fontWeight:600,color:T.textSub,marginBottom:5}}>Atelier de Craft</div><div style={{fontSize:12}}>Ajoute des items depuis le panneau de gauche</div></div>)
           :craftView==="par_craft"?(
             <div style={{display:"flex",flexDirection:"column",gap:13}}>
-              {craftItems.map(({item,qty})=>(<div key={item.ankama_id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:"1px solid "+T.border2,background:T.panel}}>
-                  <div style={{width:32,height:32,borderRadius:7,background:T.surface2,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>{item.image_url?<img src={item.image_url} style={{width:26,height:26,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:15}}>⚗️</span>}</div>
-                  <div style={{flex:1}}><span style={{fontWeight:700,fontSize:13,color:T.text}}>{item.name}</span>{item.level&&<span style={{marginLeft:6,fontSize:10,color:T.muted}}>Niv. {item.level}</span>}</div>
-                  {item.job&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:T.surface2,color:T.textSub,border:"1px solid "+T.border2}}>{item.job}</span>}
-                  <span style={{fontSize:11,color:T.accent,fontWeight:700,background:T.accentBg,borderRadius:6,padding:"2px 8px",border:"1px solid "+T.accentBorder}}>×{qty}</span>
-                </div>
-                {item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
-                  {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:108,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:9,background:complete?T.successBg:T.surface2,padding:"7px 5px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s",position:"relative"}}>
-                    {complete&&<div style={{position:"absolute",top:4,right:4,fontSize:9,color:T.success}}>✓</div>}
-                    <div style={{width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:30,height:30,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:19}}>🌿</span>}</div>
-                    <div style={{fontSize:10,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.25,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
-                    <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>ressource</div>
-                    <div style={{display:"flex",alignItems:"center",gap:3,marginTop:1}}>
-                      <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
-                      <span style={{fontSize:10,color:T.muted}}>/{total}</span>
+              {craftItems.map(({item,qty})=>{
+                const tree=subCraftsEnabled?subTrees[item.ankama_id]:null;
+                // Recursive cascade renderer
+                const renderNodes=(nodes,depth=0)=>nodes.map((r,i)=>{
+                  const total=r.qty??r.quantity*qty;
+                  const key=r.ankama_id??r.name;
+                  const inBanque=bv(key);
+                  const complete=inBanque>=total;
+                  const hasSubCraft=r.subRecipe&&r.subRecipe.length>0;
+                  return(
+                    <div key={i}>
+                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 8px",marginLeft:depth*18,borderLeft:depth>0?"2px solid "+T.accentBorder:"none",marginBottom:2,borderRadius:depth>0?0:0}}>
+                        {depth>0&&<span style={{fontSize:9,color:T.accentBorder,flexShrink:0}}>{"└"}</span>}
+                        <div style={{width:depth===0?34:26,height:depth===0?34:26,borderRadius:depth===0?7:5,background:complete?T.successBg:T.surface2,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":hasSubCraft?T.accentBorder:T.border),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,position:"relative"}}>
+                          {complete&&<div style={{position:"absolute",top:1,right:1,fontSize:7,color:T.success}}>✓</div>}
+                          {r.image_url?<img src={r.image_url} style={{width:depth===0?28:20,height:depth===0?28:20,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:depth===0?16:12}}>🌿</span>}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:depth===0?11:10,fontWeight:600,color:complete?T.success:hasSubCraft?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}{hasSubCraft&&<span style={{marginLeft:4,fontSize:8,color:T.accent,background:T.accentBg,borderRadius:4,padding:"1px 4px",border:"1px solid "+T.accentBorder}}>sous-craft</span>}</div>
+                          {depth>0&&<div style={{fontSize:8,color:T.muted}}>×{total} nécessaires</div>}
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+                          {!hasSubCraft&&<input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:10,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />}
+                          <span style={{fontSize:11,fontWeight:700,color:complete?T.success:T.accent,background:complete?T.successBg:T.accentBg,borderRadius:5,padding:"2px 7px",border:"1px solid "+(complete?"rgba(34,197,94,0.3)":T.accentBorder),minWidth:28,textAlign:"center"}}>×{total}</span>
+                        </div>
+                      </div>
+                      {hasSubCraft&&renderNodes(r.subRecipe,depth+1)}
                     </div>
-                  </div>);})}
-                </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)}
-              </div>))}
+                  );
+                });
+                return(
+                  <div key={item.ankama_id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:"1px solid "+T.border2,background:T.panel}}>
+                      <div style={{width:32,height:32,borderRadius:7,background:T.surface2,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>{item.image_url?<img src={item.image_url} style={{width:26,height:26,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:15}}>⚗️</span>}</div>
+                      <div style={{flex:1}}><span style={{fontWeight:700,fontSize:13,color:T.text}}>{item.name}</span>{item.level&&<span style={{marginLeft:6,fontSize:10,color:T.muted}}>Niv. {item.level}</span>}</div>
+                      {item.job&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:T.surface2,color:T.textSub,border:"1px solid "+T.border2}}>{item.job}</span>}
+                      <span style={{fontSize:11,color:T.accent,fontWeight:700,background:T.accentBg,borderRadius:6,padding:"2px 8px",border:"1px solid "+T.accentBorder}}>×{qty}</span>
+                    </div>
+                    {subCraftsEnabled&&tree?(
+                      tree.length>0?(<div style={{padding:"11px 13px"}}>{renderNodes(tree,0)}</div>):(<div style={{padding:"11px 13px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette connue</div>)
+                    ):(
+                      item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
+                      {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:108,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:9,background:complete?T.successBg:T.surface2,padding:"7px 5px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s",position:"relative"}}>
+                        {complete&&<div style={{position:"absolute",top:4,right:4,fontSize:9,color:T.success}}>✓</div>}
+                        <div style={{width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:30,height:30,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:19}}>🌿</span>}</div>
+                        <div style={{fontSize:10,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.25,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
+                        <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>ressource</div>
+                        <div style={{display:"flex",alignItems:"center",gap:3,marginTop:1}}>
+                          <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
+                          <span style={{fontSize:10,color:T.muted}}>/{total}</span>
+                        </div>
+                      </div>);})}
+                    </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ):(
             ingredients.length===0?(<div style={{textAlign:"center",padding:"36px",color:T.muted,fontSize:13}}>Aucun ingrédient</div>):(
