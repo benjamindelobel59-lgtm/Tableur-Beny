@@ -11,19 +11,19 @@ const useT = () => useContext(ThemeCtx);
 
 const makeT = (dark) => ({
   dark,
-  bg:           dark ? "#12141a" : "#f0f2f7",
-  surface:      dark ? "#1a1d27" : "#ffffff",
-  surface2:     dark ? "#1e2130" : "#f5f6fa",
-  panel:        dark ? "#161922" : "#fafbfc",
-  border:       dark ? "#2a2d3d" : "#dde1ed",
-  border2:      dark ? "#222538" : "#eaecf4",
-  text:         dark ? "#e4e6ef" : "#1a1d2e",
-  textSub:      dark ? "#8b8fa8" : "#5d6175",
-  muted:        dark ? "#585c72" : "#9196ab",
-  accent:       dark ? "#5b6cf0" : "#4f5de0",
-  accent2:      dark ? "#7b8cf5" : "#6b7ae8",
-  accentBg:     dark ? "rgba(91,108,240,0.12)" : "rgba(79,93,224,0.08)",
-  accentBorder: dark ? "rgba(91,108,240,0.35)" : "rgba(79,93,224,0.25)",
+  bg:           dark ? "#080a0d" : "#edf0f7",
+  surface:      dark ? "#0d1017" : "#ffffff",
+  surface2:     dark ? "#11141c" : "#f3f4f9",
+  panel:        dark ? "#0a0c12" : "#f8f9fc",
+  border:       dark ? "#1c2030" : "#d0d5e8",
+  border2:      dark ? "#161a27" : "#e2e6f2",
+  text:         dark ? "#dde0ec" : "#12151f",
+  textSub:      dark ? "#7a7f96" : "#4a5068",
+  muted:        dark ? "#464c64" : "#8890a8",
+  accent:       dark ? "#d42020" : "#b91c1c",
+  accent2:      dark ? "#e83535" : "#c62020",
+  accentBg:     dark ? "rgba(212,32,32,0.09)" : "rgba(185,28,28,0.06)",
+  accentBorder: dark ? "rgba(212,32,32,0.32)" : "rgba(185,28,28,0.22)",
   pvp:          dark ? "#ef4444" : "#dc2626",
   pvm:          dark ? "#22c55e" : "#16a34a",
   danger:       dark ? "#ef4444" : "#dc2626",
@@ -32,9 +32,10 @@ const makeT = (dark) => ({
   successBg:    dark ? "rgba(34,197,94,0.1)" : "rgba(22,163,74,0.08)",
   warning:      dark ? "#f59e0b" : "#d97706",
   discord:      "#5865F2",
-  font:         "'DM Sans', system-ui, sans-serif",
-  shadow:       dark ? "0 2px 8px rgba(0,0,0,0.5)" : "0 2px 8px rgba(0,0,0,0.07)",
-  shadowLg:     dark ? "0 12px 40px rgba(0,0,0,0.7)" : "0 12px 40px rgba(0,0,0,0.12)",
+  font:         "'Rajdhani','DM Sans', system-ui, sans-serif",
+  fontBody:     "'DM Sans', system-ui, sans-serif",
+  shadow:       dark ? "0 2px 12px rgba(0,0,0,0.7)" : "0 2px 8px rgba(0,0,0,0.07)",
+  shadowLg:     dark ? "0 12px 40px rgba(0,0,0,0.85)" : "0 12px 40px rgba(0,0,0,0.12)",
 });
 
 const ACCESS_CODE = "FMX";
@@ -86,22 +87,44 @@ function GatePage({ onSuccess }) {
   const [input,setInput]=useState("");const [error,setError]=useState(false);const [shake,setShake]=useState(false);
   const tryCode=()=>{if(input.trim().toUpperCase()===ACCESS_CODE){onSuccess();}else{setError(true);setShake(true);setInput("");setTimeout(()=>setShake(false),600);setTimeout(()=>setError(false),2500);}};
   return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}.shake{animation:shake 0.5s ease;}*{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}input::placeholder{color:${T.muted};}select option{background:${T.surface};}`}</style>
-      <div style={{width:"100%",maxWidth:360,margin:16,textAlign:"center"}}>
-        <div style={{width:56,height:56,borderRadius:15,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 14px"}}>⚔️</div>
-        <div style={{fontWeight:700,fontSize:20,color:T.text,marginBottom:3}}>Tableur By Beny</div>
-        <div style={{fontSize:10,color:T.muted,letterSpacing:3,textTransform:"uppercase",marginBottom:26}}>Accès Restreint</div>
-        <div style={{background:T.surface,border:"1px solid "+(error?"rgba(239,68,68,0.4)":T.border),borderRadius:16,padding:"22px",boxShadow:T.shadowLg}}>
-          <div style={{fontSize:12,color:T.textSub,marginBottom:14,lineHeight:1.6}}>🔒 Réservé aux membres</div>
-          <div className={shake?"shake":""} style={{marginBottom:12}}>
-            <input value={input} onChange={e=>setInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&tryCode()} placeholder="CODE D'ACCÈS" maxLength={20}
-              style={{width:"100%",background:T.surface2,border:"1px solid "+(error?"rgba(239,68,68,0.4)":T.border),borderRadius:10,padding:"13px",color:error?T.danger:T.accent,fontSize:20,fontWeight:700,outline:"none",fontFamily:T.font,boxSizing:"border-box",textAlign:"center",letterSpacing:8}} />
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+        @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+        .shake{animation:shake 0.5s ease;}
+        *{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}
+        input::placeholder{color:${T.muted};}
+        select option{background:${T.surface};}
+        @keyframes pulse{0%,100%{opacity:.15}50%{opacity:.28}}
+      `}</style>
+      {/* Background grid */}
+      <div style={{position:"absolute",inset:0,backgroundImage:`linear-gradient(${T.border} 1px,transparent 1px),linear-gradient(90deg,${T.border} 1px,transparent 1px)`,backgroundSize:"60px 60px",opacity:.35,pointerEvents:"none"}}/>
+      {/* Red glow top */}
+      <div style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:600,height:300,background:"radial-gradient(ellipse,rgba(212,32,32,0.18) 0%,transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{width:"100%",maxWidth:420,margin:16,position:"relative",zIndex:1,textAlign:"center"}}>
+        {/* Logo */}
+        <div style={{marginBottom:32}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:10}}>
+            <div style={{width:3,height:36,background:T.accent,borderRadius:2}}/>
+            <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:32,color:T.text,letterSpacing:2,textTransform:"uppercase",lineHeight:1}}>TABLEUR<span style={{color:T.accent}}> BY BENY</span></div>
+            <div style={{width:3,height:36,background:T.accent,borderRadius:2}}/>
           </div>
-          {error&&<div style={{marginBottom:12,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.25)",borderRadius:8,color:T.danger,fontSize:12,fontWeight:600}}>Code incorrect</div>}
-          <button onClick={tryCode} style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font,fontSize:14}}>Entrer →</button>
+          <div style={{fontSize:10,color:T.muted,letterSpacing:5,textTransform:"uppercase"}}>SERVEUR HÉROÏQUE · ACCÈS RESTREINT</div>
         </div>
-        <div style={{marginTop:14,fontSize:11,color:T.muted}}>Pas de code ? <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{color:"#5865F2",textDecoration:"none",fontWeight:600}}>Discord ⚡</a></div>
+        {/* Card */}
+        <div style={{background:T.surface,border:"1px solid "+(error?"rgba(239,68,68,0.5)":T.border),borderRadius:4,padding:"28px",boxShadow:T.shadowLg,position:"relative"}}>
+          {/* Top red bar */}
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:error?"#ef4444":T.accent,borderRadius:"4px 4px 0 0"}}/>
+          <div style={{fontSize:11,color:T.muted,marginBottom:20,letterSpacing:2,textTransform:"uppercase"}}>🔒 Code d'accès requis</div>
+          <div className={shake?"shake":""} style={{marginBottom:12}}>
+            <input value={input} onChange={e=>setInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&tryCode()} placeholder="— CODE —" maxLength={20}
+              style={{width:"100%",background:T.panel,border:"2px solid "+(error?"rgba(239,68,68,0.6)":T.accentBorder),borderRadius:3,padding:"15px",color:error?T.danger:T.accent,fontSize:24,fontWeight:700,outline:"none",fontFamily:"'Rajdhani',sans-serif",boxSizing:"border-box",textAlign:"center",letterSpacing:10}} />
+          </div>
+          {error&&<div style={{marginBottom:12,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.3)",borderRadius:3,color:T.danger,fontSize:12,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>⚠ Code incorrect</div>}
+          <button onClick={tryCode} style={{width:"100%",padding:"13px",borderRadius:3,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:16,letterSpacing:3,textTransform:"uppercase",transition:"opacity .15s"}}
+            onMouseEnter={e=>e.target.style.opacity=".85"} onMouseLeave={e=>e.target.style.opacity="1"}>ENTRER →</button>
+        </div>
+        <div style={{marginTop:16,fontSize:11,color:T.muted,letterSpacing:1}}>Pas de code ? <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{color:"#5865F2",textDecoration:"none",fontWeight:700}}>DISCORD ⚡</a></div>
       </div>
     </div>
   );
@@ -114,29 +137,35 @@ function AuthPage() {
   const [loading,setLoading]=useState(false);const [err,setErr]=useState("");const [ok,setOk]=useState("");
   const handle=async()=>{setErr("");setOk("");setLoading(true);try{if(mode==="login"){const{error}=await supabase.auth.signInWithPassword({email,password:pwd});if(error)throw error;}else{const{error}=await supabase.auth.signUp({email,password:pwd});if(error)throw error;setOk("Compte créé ! Vérifie ton email.");setMode("login");setLoading(false);return;}}catch(e){setErr(e.message||"Erreur");}setLoading(false);};
   return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font}}>
-      <div style={{width:"100%",maxWidth:390,margin:16}}>
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{width:50,height:50,borderRadius:13,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 12px"}}>⚔️</div>
-          <div style={{fontWeight:700,fontSize:19,color:T.text}}>Tableur By Beny</div>
-          <div style={{fontSize:10,color:T.muted,letterSpacing:3,marginTop:2,textTransform:"uppercase"}}>Serveur Héroïque</div>
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,backgroundImage:`linear-gradient(${T.border} 1px,transparent 1px),linear-gradient(90deg,${T.border} 1px,transparent 1px)`,backgroundSize:"60px 60px",opacity:.3,pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:-100,left:"50%",transform:"translateX(-50%)",width:500,height:260,background:"radial-gradient(ellipse,rgba(212,32,32,0.15) 0%,transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{width:"100%",maxWidth:400,margin:16,position:"relative",zIndex:1}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+            <div style={{width:3,height:30,background:T.accent,borderRadius:2}}/>
+            <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:26,color:T.text,letterSpacing:2,textTransform:"uppercase"}}>TABLEUR<span style={{color:T.accent}}> BY BENY</span></div>
+            <div style={{width:3,height:30,background:T.accent,borderRadius:2}}/>
+          </div>
+          <div style={{fontSize:10,color:T.muted,letterSpacing:4,textTransform:"uppercase"}}>SERVEUR HÉROÏQUE</div>
         </div>
-        <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:16,padding:22,boxShadow:T.shadowLg}}>
-          <div style={{display:"flex",background:T.surface2,borderRadius:9,padding:3,marginBottom:18}}>
+        <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:4,padding:26,boxShadow:T.shadowLg,position:"relative"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:T.accent,borderRadius:"4px 4px 0 0"}}/>
+          <div style={{display:"flex",background:T.panel,borderRadius:3,padding:3,marginBottom:20,border:"1px solid "+T.border}}>
             {["login","register"].map(m=>(
-              <button key={m} onClick={()=>{setMode(m);setErr("");setOk("");}} style={{flex:1,padding:"8px",borderRadius:7,border:"none",background:mode===m?T.accent:"transparent",color:mode===m?"#fff":T.muted,fontWeight:mode===m?700:400,cursor:"pointer",fontFamily:T.font,fontSize:13,transition:"all 0.2s"}}>{m==="login"?"Se connecter":"S'inscrire"}</button>
+              <button key={m} onClick={()=>{setMode(m);setErr("");setOk("");}} style={{flex:1,padding:"8px",borderRadius:2,border:"none",background:mode===m?T.accent:"transparent",color:mode===m?"#fff":T.muted,fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:2,textTransform:"uppercase",transition:"all 0.2s"}}>{m==="login"?"CONNEXION":"INSCRIPTION"}</button>
             ))}
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:11}}>
-            {[["Email","email",email,setEmail,"ton@email.com"],["Mot de passe","password",pwd,setPwd,"••••••••"]].map(([l,type,v,set,ph])=>(
-              <div key={l}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>{l}</label><input type={type} value={v} onChange={e=>set(e.target.value)} placeholder={ph} style={fi} onKeyDown={e=>e.key==="Enter"&&handle()} /></div>
+          <div style={{display:"flex",flexDirection:"column",gap:13}}>
+            {[["EMAIL","email",email,setEmail,"ton@email.com"],["MOT DE PASSE","password",pwd,setPwd,"••••••••"]].map(([l,type,v,set,ph])=>(
+              <div key={l}><label style={{display:"block",color:T.muted,fontSize:10,marginBottom:5,fontWeight:700,letterSpacing:2}}>{l}</label><input type={type} value={v} onChange={e=>set(e.target.value)} placeholder={ph} style={{...fi,borderRadius:3}} onKeyDown={e=>e.key==="Enter"&&handle()} /></div>
             ))}
           </div>
-          {err&&<div style={{marginTop:11,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.25)",borderRadius:8,color:T.danger,fontSize:12}}>❌ {err}</div>}
-          {ok &&<div style={{marginTop:11,padding:"8px 12px",background:T.successBg,border:"1px solid rgba(34,197,94,0.25)",borderRadius:8,color:T.success,fontSize:12}}>✅ {ok}</div>}
-          <button onClick={handle} disabled={loading} style={{width:"100%",marginTop:16,padding:"11px",borderRadius:10,border:"none",background:loading?T.surface2:T.accent,color:loading?T.muted:"#fff",fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:T.font,fontSize:14}}>{loading?"Chargement...":(mode==="login"?"Se connecter":"Créer mon compte")}</button>
+          {err&&<div style={{marginTop:13,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.3)",borderRadius:3,color:T.danger,fontSize:12,fontWeight:700,letterSpacing:1}}>⚠ {err}</div>}
+          {ok &&<div style={{marginTop:13,padding:"8px 12px",background:T.successBg,border:"1px solid rgba(34,197,94,0.3)",borderRadius:3,color:T.success,fontSize:12,fontWeight:700}}>✓ {ok}</div>}
+          <button onClick={handle} disabled={loading} style={{width:"100%",marginTop:18,padding:"12px",borderRadius:3,border:"none",background:loading?T.surface2:T.accent,color:loading?T.muted:"#fff",fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:16,letterSpacing:3,textTransform:"uppercase"}}>{loading?"CHARGEMENT...":(mode==="login"?"SE CONNECTER →":"CRÉER MON COMPTE →")}</button>
         </div>
-        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:11}}>Données privées et sécurisées 🔒</div>
+        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:11,letterSpacing:1}}>DONNÉES PRIVÉES ET SÉCURISÉES 🔒</div>
       </div>
     </div>
   );
@@ -1080,36 +1109,48 @@ function AppInner({ darkMode, toggleTheme }) {
   const handleSurcatChange=async(id,surcat)=>{const char=characters.find(c=>c.id===id);const oldSurcat=char?.surcat||"PVM";const{error}=await supabase.from("characters").update({surcat}).eq("id",id);if(error)return;setCharacters(characters.map(c=>c.id===id?{...c,surcat}:c));fireWebhook("surcat",{...char,surcat},{oldSurcat,newSurcat:surcat});showToast("Dossier → "+surcat+" ✓");};
   const handleLogout=async()=>await supabase.auth.signOut();
   if(!gateOpen)return<GatePage onSuccess={()=>setGateOpen(true)}/>;
-  if(authLoading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.accent,fontFamily:T.font}}><div style={{textAlign:"center"}}><div style={{fontSize:38,marginBottom:12}}>⚔️</div><div style={{letterSpacing:3,color:T.muted,fontSize:10,textTransform:"uppercase"}}>Chargement...</div></div></div>);
+  if(authLoading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.accent,fontFamily:T.font}}><div style={{textAlign:"center"}}><div style={{width:50,height:2,background:T.accent,margin:"0 auto 16px",animation:"none"}}></div><div style={{fontSize:11,letterSpacing:5,color:T.muted,fontFamily:"'Rajdhani',sans-serif",textTransform:"uppercase"}}>Chargement...</div></div></div>);
   if(!session)return<AuthPage/>;
   const comptes=["Tous",...Array.from(new Set(characters.map(c=>c.compte).filter(Boolean)))];
   const surcats=[{id:"all",label:"Tous",icon:"⚔️",color:"#6b7280"},{id:"PVP",label:"PVP",icon:"🏆",color:T.pvp},{id:"PVM",label:"PVM",icon:"🐉",color:T.pvm}];
   const countSurcat=(sc)=>sc.id==="all"?characters.length:characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
   const countFor=(cat)=>{const base=activeSurcat==="all"?characters:characters.filter(c=>(c.surcat||"PVM")===activeSurcat);return cat.etats?base.filter(c=>cat.etats.includes(c.etat)).length:base.length;};
   const filtered=characters.filter(c=>{const inSurcat=activeSurcat==="all"||(c.surcat||"PVM")===activeSurcat;const cat=CATEGORIES.find(cat=>cat.id===activeTab);const inTab=activeTab==="all"||(cat?.etats&&cat.etats.includes(c.etat));const s=search.toLowerCase();return inSurcat&&inTab&&(c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s))&&(filterCompte==="Tous"||c.compte===filterCompte);}).sort((a,b)=>{if(sortBy==="compte")return(a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");if(sortBy==="level")return b.level-a.level;if(sortBy==="nom")return(a.nom||"").localeCompare(b.nom||"");return(a.classe||"").localeCompare(b.classe||"");});
-  const TabBtn=({active,color,onClick,icon,label,count})=>(<button onClick={onClick} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 11px",borderRadius:8,border:"1px solid "+(active?color+"55":T.border2),background:active?color+"10":T.surface,color:active?color:T.muted,cursor:"pointer",fontWeight:active?600:400,fontSize:12,transition:"all 0.15s",fontFamily:T.font}}><span style={{fontSize:13}}>{icon}</span><span>{label}</span><span style={{background:active?color+"22":T.surface2,color:active?color:T.muted,borderRadius:20,padding:"0 5px",fontSize:10,fontWeight:700,minWidth:16,textAlign:"center"}}>{count}</span></button>);
-  const MAIN_TABS=[{id:"persos",icon:"⚔️",label:"Personnages"},{id:"craft",icon:"⚗️",label:"Atelier de Craft"},{id:"build",icon:"🏗️",label:"Créateur de Build"},{id:"partages",icon:"🔗",label:"Partages",badge:shareCount},{id:"webhooks",icon:"🔔",label:"Webhooks"}];
+  const TabBtn=({active,color,onClick,icon,label,count})=>(<button onClick={onClick} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:3,border:"1px solid "+(active?color+"44":T.border2),background:active?color+"12":T.surface,color:active?color:T.muted,cursor:"pointer",fontWeight:700,fontSize:11,transition:"all 0.15s",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase"}}><span style={{fontSize:12}}>{icon}</span><span>{label}</span><span style={{background:active?color+"22":T.surface2,color:active?color:T.muted,borderRadius:2,padding:"0 5px",fontSize:10,fontWeight:700,minWidth:16,textAlign:"center"}}>{count}</span></button>);
+  const MAIN_TABS=[{id:"persos",icon:"⚔️",label:"PERSONNAGES"},{id:"craft",icon:"⚗️",label:"ATELIER CRAFT"},{id:"build",icon:"🏗️",label:"BUILD"},{id:"partages",icon:"🔗",label:"PARTAGES",badge:shareCount},{id:"webhooks",icon:"🔔",label:"WEBHOOKS"}];
   return (
     <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.font,color:T.text}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');*{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}input::placeholder{color:${T.muted};}select option{background:${T.surface};}`}</style>
-      <nav style={{position:"sticky",top:0,zIndex:10,borderBottom:"1px solid "+T.border,background:T.surface,height:56,display:"flex",alignItems:"center"}}>
-        <div style={{maxWidth:1500,margin:"0 auto",padding:"0 20px",width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:31,height:31,borderRadius:8,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>⚔️</div>
-            <div><div style={{fontWeight:700,fontSize:14,color:T.text,letterSpacing:-0.2}}>Tableur By Beny</div><div style={{fontSize:9,color:T.muted,letterSpacing:2,textTransform:"uppercase"}}>Serveur Héroïque</div></div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+        *{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}
+        input::placeholder{color:${T.muted};}
+        select option{background:${T.surface};}
+      `}</style>
+      {/* ── TOP NAV ── */}
+      <nav style={{position:"sticky",top:0,zIndex:10,borderBottom:"1px solid "+T.border,background:T.surface,height:52,display:"flex",alignItems:"stretch"}}>
+        {/* Red left accent bar */}
+        <div style={{width:3,background:T.accent,flexShrink:0}}/>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px",gap:10}}>
+          {/* Logo */}
+          <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+            <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:20,color:T.text,letterSpacing:2,textTransform:"uppercase",lineHeight:1}}>TABLEUR<span style={{color:T.accent,marginLeft:4}}>BY BENY</span></div>
+            <div style={{width:1,height:24,background:T.border,marginLeft:4}}/>
+            <div style={{fontSize:9,color:T.muted,letterSpacing:3,textTransform:"uppercase"}}>Serveur Héroïque</div>
           </div>
-          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-            {[{l:"Total",v:characters.length,c:T.accent},{l:"PVP",v:characters.filter(c=>(c.surcat||"PVM")==="PVP").length,c:T.pvp},{l:"PVM",v:characters.filter(c=>(c.surcat||"PVM")==="PVM").length,c:T.pvm},{l:"Morts",v:characters.filter(c=>c.etat==="Mort").length,c:T.danger}].map(s=>(<div key={s.l} style={{textAlign:"center",padding:"3px 8px",background:T.surface2,border:"1px solid "+T.border2,borderRadius:7}}><div style={{fontSize:13,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div><div style={{fontSize:8,color:T.muted,textTransform:"uppercase",letterSpacing:1,marginTop:1}}>{s.l}</div></div>))}
-            {mainTab==="persos"&&<button onClick={openAdd} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"6px 13px",fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:T.font,whiteSpace:"nowrap"}}>+ Ajouter</button>}
-            <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:4,padding:"5px 11px",background:"#5865F2",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,textDecoration:"none",whiteSpace:"nowrap",fontFamily:T.font}}><svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.031.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>Discord</a>
-            <button onClick={toggleTheme} title={darkMode?"Mode clair":"Mode sombre"} style={{width:32,height:32,borderRadius:8,border:"1px solid "+T.border,background:T.surface2,color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{darkMode?"☀️":"🌙"}</button>
-            <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 8px",background:T.surface2,border:"1px solid "+T.border2,borderRadius:8}}><span style={{fontSize:11,color:T.textSub,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span><button onClick={handleLogout} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.2)",borderRadius:5,padding:"2px 6px",color:T.danger,cursor:"pointer",fontSize:11,fontFamily:T.font}}>Déco</button></div>
+          {/* Right side stats + actions */}
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+            {[{l:"TOTAL",v:characters.length,c:T.text},{l:"PVP",v:characters.filter(c=>(c.surcat||"PVM")==="PVP").length,c:T.pvp},{l:"PVM",v:characters.filter(c=>(c.surcat||"PVM")==="PVM").length,c:T.pvm},{l:"MORTS",v:characters.filter(c=>c.etat==="Mort").length,c:T.danger}].map(s=>(<div key={s.l} style={{textAlign:"center",padding:"3px 9px",background:T.panel,border:"1px solid "+T.border,borderRadius:2}}><div style={{fontSize:14,fontWeight:700,color:s.c,lineHeight:1,fontFamily:"'Rajdhani',sans-serif"}}>{s.v}</div><div style={{fontSize:8,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginTop:1}}>{s.l}</div></div>))}
+            {mainTab==="persos"&&<button onClick={openAdd} style={{background:T.accent,color:"#fff",border:"none",borderRadius:2,padding:"6px 14px",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:2,textTransform:"uppercase",whiteSpace:"nowrap"}}>+ AJOUTER</button>}
+            <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:4,padding:"5px 11px",background:"#5865F2",borderRadius:2,color:"#fff",fontWeight:700,fontSize:12,textDecoration:"none",whiteSpace:"nowrap",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase"}}><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.031.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>DISCORD</a>
+            <button onClick={toggleTheme} title={darkMode?"Mode clair":"Mode sombre"} style={{width:30,height:30,borderRadius:2,border:"1px solid "+T.border,background:T.panel,color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{darkMode?"☀️":"🌙"}</button>
+            <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 8px",background:T.panel,border:"1px solid "+T.border,borderRadius:2}}><span style={{fontSize:10,color:T.textSub,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif"}}>{session.user.email}</span><button onClick={handleLogout} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.25)",borderRadius:2,padding:"2px 7px",color:T.danger,cursor:"pointer",fontSize:10,fontFamily:"'Rajdhani',sans-serif",fontWeight:700,letterSpacing:1}}>DÉCO</button></div>
           </div>
         </div>
       </nav>
-      <div style={{borderBottom:"1px solid "+T.border,background:T.surface}}>
-        <div style={{maxWidth:1500,margin:"0 auto",padding:"0 20px",display:"flex",gap:1}}>
-          {MAIN_TABS.map(t=>(<button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"10px 15px",border:"none",borderBottom:mainTab===t.id?"2px solid "+T.accent:"2px solid transparent",background:"transparent",color:mainTab===t.id?T.accent:T.muted,fontWeight:mainTab===t.id?600:400,cursor:"pointer",fontSize:13,fontFamily:T.font,display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}><span style={{fontSize:13}}>{t.icon}</span><span>{t.label}</span>{t.badge>0&&<span style={{background:T.pvp,color:"#fff",borderRadius:20,padding:"1px 5px",fontSize:9,fontWeight:700}}>{t.badge}</span>}</button>))}
+      {/* ── TAB BAR ── */}
+      <div style={{borderBottom:"2px solid "+T.border,background:T.surface,position:"sticky",top:52,zIndex:9}}>
+        <div style={{maxWidth:1500,margin:"0 auto",padding:"0 21px",display:"flex",gap:0}}>
+          {MAIN_TABS.map(t=>(<button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"11px 18px",border:"none",borderBottom:mainTab===t.id?"2px solid "+T.accent:"2px solid transparent",marginBottom:"-2px",background:"transparent",color:mainTab===t.id?T.accent:T.muted,fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",display:"flex",alignItems:"center",gap:5,transition:"all 0.15s",fontSize:13,letterSpacing:1.5,textTransform:"none"}}><span style={{fontSize:13}}>{t.icon}</span><span>{t.label}</span>{t.badge>0&&<span style={{background:T.pvp,color:"#fff",borderRadius:2,padding:"1px 5px",fontSize:9,fontWeight:700}}>{t.badge}</span>}</button>))}
         </div>
       </div>
       {mainTab==="build"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><BuildTab session={session} onSendToAtelier={items=>{setCraftExternalItems(items);setMainTab("craft");}}/></div>}
@@ -1117,78 +1158,91 @@ function AppInner({ darkMode, toggleTheme }) {
       {mainTab==="webhooks"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><WebhooksTab session={session}/></div>}
       {mainTab==="craft"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><CraftTab session={session} externalItems={craftExternalItems} onExternalConsumed={()=>setCraftExternalItems(null)}/></div>}
       <div style={{maxWidth:1500,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"14px 20px"}}>
-        <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>{surcats.map(sc=><TabBtn key={sc.id} active={activeSurcat===sc.id} color={sc.color} onClick={()=>{setActiveSurcat(sc.id);setActiveTab("all");}} icon={sc.icon} label={sc.label} count={countSurcat(sc)}/>)}</div>
-        <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>{CATEGORIES.map(cat=><TabBtn key={cat.id} active={activeTab===cat.id} color={cat.color} onClick={()=>setActiveTab(cat.id)} icon={cat.icon} label={cat.label} count={countFor(cat)}/>)}</div>
-        <div style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
-          <div style={{position:"relative",flex:1,minWidth:170}}><span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:12,pointerEvents:"none"}}>🔍</span><input placeholder="Rechercher..." value={search} onChange={e=>setSearch(e.target.value)} style={{...fi,paddingLeft:30}}/></div>
-          <select value={filterCompte} onChange={e=>setFilterCompte(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}>{comptes.map(c=><option key={c}>{c}</option>)}</select>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{...fi,width:"auto",cursor:"pointer"}}><option value="compte">Compte</option><option value="nom">Nom</option><option value="level">Level</option><option value="classe">Classe</option></select>
+        {/* Surcat filters */}
+        <div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>{surcats.map(sc=><TabBtn key={sc.id} active={activeSurcat===sc.id} color={sc.color} onClick={()=>{setActiveSurcat(sc.id);setActiveTab("all");}} icon={sc.icon} label={sc.label} count={countSurcat(sc)}/>)}</div>
+        {/* Status filters */}
+        <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>{CATEGORIES.map(cat=><TabBtn key={cat.id} active={activeTab===cat.id} color={cat.color} onClick={()=>setActiveTab(cat.id)} icon={cat.icon} label={cat.label} count={countFor(cat)}/>)}</div>
+        {/* Search/filter bar */}
+        <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap",alignItems:"center",padding:"10px 12px",background:T.surface,border:"1px solid "+T.border,borderRadius:3}}>
+          <div style={{position:"relative",flex:1,minWidth:170}}><span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:12,pointerEvents:"none"}}>🔍</span><input placeholder="Rechercher..." value={search} onChange={e=>setSearch(e.target.value)} style={{...fi,paddingLeft:30,borderRadius:2,fontFamily:"'DM Sans',sans-serif"}}/></div>
+          <select value={filterCompte} onChange={e=>setFilterCompte(e.target.value)} style={{...fi,width:"auto",cursor:"pointer",borderRadius:2,fontFamily:"'DM Sans',sans-serif"}}>{comptes.map(c=><option key={c}>{c}</option>)}</select>
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{...fi,width:"auto",cursor:"pointer",borderRadius:2,fontFamily:"'DM Sans',sans-serif"}}><option value="compte">Compte</option><option value="nom">Nom</option><option value="level">Level</option><option value="classe">Classe</option></select>
         </div>
-        {loading?(<div style={{textAlign:"center",padding:"70px",color:T.muted}}><div style={{fontSize:30,marginBottom:8}}>⏳</div><div>Chargement...</div></div>)
-        :filtered.length===0?(<div style={{textAlign:"center",padding:"70px 18px",color:T.muted}}><div style={{fontSize:40,marginBottom:9,opacity:0.2}}>🗡️</div><div style={{fontSize:14,fontWeight:600,color:T.textSub,marginBottom:5}}>{characters.length===0?"Aucun personnage":"Aucun résultat"}</div><div style={{fontSize:12}}>{characters.length===0?"Ajoutez votre premier personnage":"Modifiez vos filtres"}</div></div>)
-        :(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(295px,1fr))",gap:9}}>
+        {loading?(<div style={{textAlign:"center",padding:"70px",color:T.muted}}><div style={{width:40,height:2,background:T.accent,margin:"0 auto 14px"}}></div><div style={{fontSize:11,letterSpacing:4,fontFamily:"'Rajdhani',sans-serif",textTransform:"uppercase"}}>Chargement...</div></div>)
+        :filtered.length===0?(<div style={{textAlign:"center",padding:"70px 18px",color:T.muted}}><div style={{fontSize:40,marginBottom:9,opacity:0.15}}>🗡️</div><div style={{fontSize:14,fontWeight:700,color:T.textSub,marginBottom:5,fontFamily:"'Rajdhani',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>{characters.length===0?"Aucun personnage":"Aucun résultat"}</div><div style={{fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>{characters.length===0?"Ajoutez votre premier personnage":"Modifiez vos filtres"}</div></div>)
+        :(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(285px,1fr))",gap:8}}>
           {filtered.map(char=>{const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;const sc=surcats.find(s=>s.id===(char.surcat||"PVM"))||surcats[2];return(
-            <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,overflow:"hidden",boxShadow:T.shadow}}>
+            <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:3,overflow:"hidden",boxShadow:T.shadow,transition:"border-color .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=catColor+"55"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+              {/* Top colored line */}
               <div style={{height:2,background:catColor}}/>
-              <div style={{padding:"11px 12px"}}>
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:9}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:38,height:38,borderRadius:9,background:catColor+"12",border:"1px solid "+catColor+"25",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><img src={CLASS_ICONS[char.classe]} style={{width:30,height:30,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"}/></div>
-                    <div><div style={{display:"flex",alignItems:"center",gap:4,marginBottom:2}}><span style={{fontWeight:700,fontSize:13,color:T.text}}>{char.nom}</span><span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:20,background:sc.color+"14",color:sc.color,border:"1px solid "+sc.color+"22"}}>{sc.icon} {sc.label}</span></div><div style={{fontSize:10,color:T.muted}}>{char.compte||<span style={{fontStyle:"italic"}}>Sans compte</span>}</div></div>
+              <div style={{padding:"10px 12px"}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
+                    <div style={{width:36,height:36,borderRadius:3,background:catColor+"10",border:"1px solid "+catColor+"20",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><img src={CLASS_ICONS[char.classe]} style={{width:28,height:28,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"}/></div>
+                    <div>
+                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                        <span style={{fontWeight:700,fontSize:14,color:T.text,fontFamily:"'Rajdhani',sans-serif",letterSpacing:.5}}>{char.nom}</span>
+                        <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:2,background:sc.color+"14",color:sc.color,border:"1px solid "+sc.color+"30",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1}}>{sc.icon} {sc.label}</span>
+                      </div>
+                      <div style={{fontSize:10,color:T.muted,fontFamily:"'DM Sans',sans-serif"}}>{char.compte||<span style={{fontStyle:"italic"}}>Sans compte</span>}</div>
+                    </div>
                   </div>
                   <div style={{display:"flex",gap:3,flexShrink:0}}>
-                    <button onClick={()=>openEdit(char)} style={{background:T.surface2,border:"1px solid "+T.border2,borderRadius:6,padding:"4px 7px",color:T.textSub,cursor:"pointer",fontSize:11,fontFamily:T.font}}>✏️</button>
-                    <button onClick={()=>setDeleteConfirm(char.id)} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.18)",borderRadius:6,padding:"4px 7px",color:T.danger,cursor:"pointer",fontSize:11,fontFamily:T.font}}>🗑️</button>
+                    <button onClick={()=>openEdit(char)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"4px 7px",color:T.textSub,cursor:"pointer",fontSize:11,fontFamily:T.font}}>✏️</button>
+                    <button onClick={()=>setDeleteConfirm(char.id)} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.2)",borderRadius:2,padding:"4px 7px",color:T.danger,cursor:"pointer",fontSize:11,fontFamily:T.font}}>🗑️</button>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:4,marginBottom:8}}>
-                  {[{l:"Classe",v:char.classe,c:T.textSub},{l:"Level",v:char.level,c:T.accent},{l:"Max",v:char.level_max,c:T.accent}].map(s=>(<div key={s.l} style={{flex:1,background:T.surface2,borderRadius:6,padding:"4px 5px",textAlign:"center",border:"1px solid "+T.border2}}><div style={{fontSize:7,color:T.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:1}}>{s.l}</div><div style={{fontWeight:700,fontSize:11,color:s.c}}>{s.v}</div></div>))}
+                <div style={{display:"flex",gap:3,marginBottom:8}}>
+                  {[{l:"CLASSE",v:char.classe,c:T.textSub},{l:"LEVEL",v:char.level,c:T.accent},{l:"MAX",v:char.level_max,c:T.accent}].map(s=>(<div key={s.l} style={{flex:1,background:T.panel,borderRadius:2,padding:"4px 5px",textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:7,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:1,fontFamily:"'Rajdhani',sans-serif"}}>{s.l}</div><div style={{fontWeight:700,fontSize:11,color:s.c,fontFamily:"'Rajdhani',sans-serif"}}>{s.v}</div></div>))}
                 </div>
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                  <select value={char.etat} onChange={e=>handleEtatChange(char.id,e.target.value)} style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:7,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,outline:"none",fontFamily:T.font,cursor:"pointer"}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select>
-                  <select value={char.surcat||"PVM"} onChange={e=>handleSurcatChange(char.id,e.target.value)} style={{background:T.surface2,border:"1px solid "+T.border2,borderRadius:7,padding:"5px 6px",color:T.text,fontWeight:600,fontSize:11,outline:"none",fontFamily:T.font,cursor:"pointer"}}><option value="PVM">🐉 PVM</option><option value="PVP">🏆 PVP</option></select>
-                  <div style={{background:char.frigost!=="Continent"?T.accentBg:T.surface2,border:"1px solid "+(char.frigost!=="Continent"?T.accentBorder:T.border2),borderRadius:7,padding:"5px 7px",fontSize:11,color:char.frigost!=="Continent"?T.accent:T.muted,fontWeight:600,whiteSpace:"nowrap"}}>{char.frigost!=="Continent"?`❄️ ${char.frigost==="Frigost 2"?"F2":char.frigost}`:"🌍"}</div>
+                  <select value={char.etat} onChange={e=>handleEtatChange(char.id,e.target.value)} style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:2,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer",letterSpacing:.5}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select>
+                  <select value={char.surcat||"PVM"} onChange={e=>handleSurcatChange(char.id,e.target.value)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"5px 6px",color:T.text,fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer"}}><option value="PVM">🐉 PVM</option><option value="PVP">🏆 PVP</option></select>
+                  <div style={{background:char.frigost!=="Continent"?T.accentBg:T.panel,border:"1px solid "+(char.frigost!=="Continent"?T.accentBorder:T.border),borderRadius:2,padding:"5px 7px",fontSize:11,color:char.frigost!=="Continent"?T.accent:T.muted,fontWeight:700,whiteSpace:"nowrap",fontFamily:"'Rajdhani',sans-serif"}}>{char.frigost!=="Continent"?`❄️ ${char.frigost==="Frigost 2"?"F2":char.frigost}`:"🌍"}</div>
                 </div>
               </div>
             </div>
           );})}
         </div>)}
-        <div style={{textAlign:"center",marginTop:10,color:T.muted,fontSize:9,letterSpacing:2}}>{filtered.length} PERSONNAGE{filtered.length!==1?"S":""} · SUPABASE ☁️</div>
+        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:9,letterSpacing:3,fontFamily:"'Rajdhani',sans-serif"}}>{filtered.length} PERSONNAGE{filtered.length!==1?"S":""} · SUPABASE ☁️</div>
       </div>
       {/* ── MODALS ── */}
-      {showForm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,backdropFilter:"blur(8px)"}}>
-        <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:16,padding:22,width:"100%",maxWidth:490,boxShadow:T.shadowLg,position:"relative",margin:16,maxHeight:"90vh",overflowY:"auto"}}>
-          <button onClick={()=>setShowForm(false)} style={{position:"absolute",top:13,right:13,background:T.surface2,border:"1px solid "+T.border,color:T.muted,cursor:"pointer",borderRadius:6,padding:"3px 9px",fontFamily:T.font}}>✕</button>
-          <h2 style={{margin:"0 0 16px",color:T.text,fontSize:15,fontWeight:700}}>{editingChar?"✏️ Modifier":"⚔️ Nouveau personnage"}</h2>
-          <div style={{marginBottom:13}}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:7,fontWeight:500}}>📁 Dossier</label><div style={{display:"flex",gap:7}}>{[{id:"PVM",icon:"🐉",color:T.pvm},{id:"PVP",icon:"🏆",color:T.pvp}].map(s=>(<button key={s.id} onClick={()=>setForm(p=>({...p,surcat:s.id}))} style={{flex:1,padding:"9px",borderRadius:9,border:"2px solid "+(form.surcat===s.id?s.color:T.border),background:form.surcat===s.id?s.color+"12":T.surface2,color:form.surcat===s.id?s.color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13,fontWeight:700}}>{s.icon} {s.id}</button>))}</div></div>
+      {showForm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,backdropFilter:"blur(6px)"}}>
+        <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:4,padding:24,width:"100%",maxWidth:490,boxShadow:T.shadowLg,position:"relative",margin:16,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:T.accent,borderRadius:"4px 4px 0 0"}}/>
+          <button onClick={()=>setShowForm(false)} style={{position:"absolute",top:14,right:14,background:T.panel,border:"1px solid "+T.border,color:T.muted,cursor:"pointer",borderRadius:2,padding:"3px 9px",fontFamily:"'Rajdhani',sans-serif",fontWeight:700}}>✕</button>
+          <h2 style={{margin:"0 0 18px",color:T.text,fontSize:16,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>{editingChar?"✏️ MODIFIER":"⚔️ NOUVEAU PERSONNAGE"}</h2>
+          <div style={{marginBottom:14}}><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:8,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>📁 DOSSIER</label><div style={{display:"flex",gap:7}}>{[{id:"PVM",icon:"🐉",color:T.pvm},{id:"PVP",icon:"🏆",color:T.pvp}].map(s=>(<button key={s.id} onClick={()=>setForm(p=>({...p,surcat:s.id}))} style={{flex:1,padding:"9px",borderRadius:2,border:"2px solid "+(form.surcat===s.id?s.color:T.border),background:form.surcat===s.id?s.color+"12":T.panel,color:form.surcat===s.id?s.color:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:15,fontWeight:700,letterSpacing:1}}>{s.icon} {s.id}</button>))}</div></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {[{col:"1/-1",label:"Nom du compte",key:"compte",ph:"ex: MonCompte1"},{col:"1/-1",label:"Nom du personnage *",key:"nom",ph:"ex: Darkblade"}].map(f=>(<div key={f.key} style={{gridColumn:f.col}}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>{f.label}</label><input value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph} style={fi}/></div>))}
-            <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>Classe</label><select value={form.classe} onChange={e=>setForm(p=>({...p,classe:e.target.value}))} style={{...fi,cursor:"pointer"}}>{CLASSES.map(c=><option key={c}>{c}</option>)}</select></div>
-            <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>État</label><select value={form.etat} onChange={e=>setForm(p=>({...p,etat:e.target.value}))} style={{...fi,cursor:"pointer"}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select></div>
-            <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>Level actuel</label><input type="number" min={1} max={200} value={form.level} onChange={e=>setForm(p=>({...p,level:parseInt(e.target.value)||1}))} style={fi}/></div>
-            <div><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:5,fontWeight:500}}>Level max</label><input type="number" min={1} max={200} value={form.level_max} onChange={e=>setForm(p=>({...p,level_max:parseInt(e.target.value)||1}))} style={fi}/></div>
-            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",color:T.muted,fontSize:11,marginBottom:7,fontWeight:500}}>Zone</label>
+            {[{col:"1/-1",label:"NOM DU COMPTE",key:"compte",ph:"ex: MonCompte1"},{col:"1/-1",label:"NOM DU PERSONNAGE *",key:"nom",ph:"ex: Darkblade"}].map(f=>(<div key={f.key} style={{gridColumn:f.col}}><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>{f.label}</label><input value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph} style={{...fi,borderRadius:2}}/></div>))}
+            <div><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>CLASSE</label><select value={form.classe} onChange={e=>setForm(p=>({...p,classe:e.target.value}))} style={{...fi,cursor:"pointer",borderRadius:2}}>{CLASSES.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>ÉTAT</label><select value={form.etat} onChange={e=>setForm(p=>({...p,etat:e.target.value}))} style={{...fi,cursor:"pointer",borderRadius:2}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select></div>
+            <div><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>LEVEL ACTUEL</label><input type="number" min={1} max={200} value={form.level} onChange={e=>setForm(p=>({...p,level:parseInt(e.target.value)||1}))} style={{...fi,borderRadius:2}}/></div>
+            <div><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>LEVEL MAX</label><input type="number" min={1} max={200} value={form.level_max} onChange={e=>setForm(p=>({...p,level_max:parseInt(e.target.value)||1}))} style={{...fi,borderRadius:2}}/></div>
+            <div style={{gridColumn:"1/-1"}}><label style={{display:"block",color:T.muted,fontSize:9,marginBottom:8,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>ZONE</label>
               <div style={{display:"flex",gap:7,marginBottom:form.frigost!=="Continent"?8:0}}>
-                <button onClick={()=>setForm(p=>({...p,frigost:"Continent"}))} style={{flex:1,padding:"8px",borderRadius:9,border:"2px solid "+(form.frigost==="Continent"?T.accent:T.border),background:form.frigost==="Continent"?T.accentBg:T.surface2,color:form.frigost==="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:600}}>🌍 Continent</button>
-                <button onClick={()=>setForm(p=>({...p,frigost:p.frigost==="Continent"?"Ben":p.frigost}))} style={{flex:1,padding:"8px",borderRadius:9,border:"2px solid "+(form.frigost!=="Continent"?T.accent:T.border),background:form.frigost!=="Continent"?T.accentBg:T.surface2,color:form.frigost!=="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12,fontWeight:600}}>❄️ Frigost 2</button>
+                <button onClick={()=>setForm(p=>({...p,frigost:"Continent"}))} style={{flex:1,padding:"8px",borderRadius:2,border:"2px solid "+(form.frigost==="Continent"?T.accent:T.border),background:form.frigost==="Continent"?T.accentBg:T.panel,color:form.frigost==="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>🌍 CONTINENT</button>
+                <button onClick={()=>setForm(p=>({...p,frigost:p.frigost==="Continent"?"Ben":p.frigost}))} style={{flex:1,padding:"8px",borderRadius:2,border:"2px solid "+(form.frigost!=="Continent"?T.accent:T.border),background:form.frigost!=="Continent"?T.accentBg:T.panel,color:form.frigost!=="Continent"?T.accent:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>❄️ FRIGOST 2</button>
               </div>
               {form.frigost!=="Continent"&&(
-                <div style={{display:"flex",gap:5,flexWrap:"wrap",padding:"9px 10px",background:T.accentBg,borderRadius:8,border:"1px solid "+T.accentBorder}}>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",padding:"9px 10px",background:T.accentBg,borderRadius:2,border:"1px solid "+T.accentBorder}}>
                   {["Ben","Obsi","Tengu","Korri","Kolloso","Glour","F3"].map(z=>(
-                    <button key={z} onClick={()=>setForm(p=>({...p,frigost:z}))} style={{padding:"4px 10px",borderRadius:6,border:"1px solid "+(form.frigost===z?T.accent:T.accentBorder),background:form.frigost===z?T.accent:T.surface,color:form.frigost===z?"#fff":T.accent,cursor:"pointer",fontFamily:T.font,fontSize:11,fontWeight:form.frigost===z?700:500,transition:"all 0.15s"}}>{z}</button>
+                    <button key={z} onClick={()=>setForm(p=>({...p,frigost:z}))} style={{padding:"4px 10px",borderRadius:2,border:"1px solid "+(form.frigost===z?T.accent:T.accentBorder),background:form.frigost===z?T.accent:T.panel,color:form.frigost===z?"#fff":T.accent,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:12,fontWeight:700,letterSpacing:1,transition:"all 0.12s"}}>{z}</button>
                   ))}
                 </div>
               )}
             </div>
           </div>
-          <div style={{display:"flex",gap:7,marginTop:16}}>
-            <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"10px",borderRadius:9,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13}}>Annuler</button>
-            <button onClick={handleSubmit} style={{flex:2,padding:"10px",borderRadius:9,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font,fontSize:13}}>{editingChar?"Sauvegarder":"Ajouter"}</button>
+          <div style={{display:"flex",gap:7,marginTop:18}}>
+            <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"10px",borderRadius:2,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:1,fontWeight:700}}>ANNULER</button>
+            <button onClick={handleSubmit} style={{flex:2,padding:"10px",borderRadius:2,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:2}}>{editingChar?"SAUVEGARDER ✓":"AJOUTER +"}</button>
           </div>
         </div>
       </div>)}
-      {deleteConfirm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,backdropFilter:"blur(8px)"}}><div style={{background:T.surface,border:"1px solid rgba(239,68,68,0.3)",borderRadius:15,padding:22,maxWidth:310,textAlign:"center",margin:16,boxShadow:T.shadowLg}}><div style={{fontSize:26,marginBottom:7}}>💀</div><h3 style={{color:T.danger,margin:"0 0 5px",fontFamily:T.font}}>Supprimer ce personnage ?</h3><p style={{color:T.muted,margin:"0 0 16px",fontSize:12}}>Action irréversible.</p><div style={{display:"flex",gap:7}}><button onClick={()=>setDeleteConfirm(null)} style={{flex:1,padding:"9px",borderRadius:9,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font}}>Annuler</button><button onClick={()=>handleDelete(deleteConfirm)} style={{flex:1,padding:"9px",borderRadius:9,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font}}>Supprimer</button></div></div></div>)}
-      {toast&&(<div style={{position:"fixed",bottom:20,right:20,background:toast.type==="err"?"#dc2626":T.accent,color:"#fff",padding:"9px 15px",borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:200,fontFamily:T.font}}>{toast.type==="err"?"❌":"✅"} {toast.msg}</div>)}
+      {deleteConfirm&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,backdropFilter:"blur(6px)"}}><div style={{background:T.surface,border:"1px solid rgba(239,68,68,0.35)",borderRadius:4,padding:24,maxWidth:310,textAlign:"center",margin:16,boxShadow:T.shadowLg,position:"relative"}}><div style={{position:"absolute",top:0,left:0,right:0,height:2,background:T.danger}}/>  <div style={{fontSize:24,marginBottom:8}}>💀</div><h3 style={{color:T.danger,margin:"0 0 5px",fontFamily:"'Rajdhani',sans-serif",fontSize:18,letterSpacing:1,textTransform:"uppercase"}}>SUPPRIMER CE PERSONNAGE ?</h3><p style={{color:T.muted,margin:"0 0 16px",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Action irréversible.</p><div style={{display:"flex",gap:7}}><button onClick={()=>setDeleteConfirm(null)} style={{flex:1,padding:"9px",borderRadius:2,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontWeight:700,letterSpacing:1}}>ANNULER</button><button onClick={()=>handleDelete(deleteConfirm)} style={{flex:1,padding:"9px",borderRadius:2,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:1}}>SUPPRIMER</button></div></div></div>)}
+      {toast&&(<div style={{position:"fixed",bottom:20,right:20,background:toast.type==="err"?"#dc2626":T.accent,color:"#fff",padding:"10px 16px",borderRadius:2,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:200,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,borderLeft:"4px solid rgba(255,255,255,0.3)"}}>{toast.type==="err"?"⚠":"✓"} {toast.msg}</div>)}
     </div>
   );
 }
