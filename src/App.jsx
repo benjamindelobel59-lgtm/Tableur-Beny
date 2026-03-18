@@ -513,6 +513,7 @@ function CraftTab({ session }) {
   const [searching,   setSearching]   = useState(false);
   const [craftItems,  setCraftItems]  = useState([]); // [{item:{ankama_id,name,level,image_url,subtype,recipe[]},qty}]
   const [savedLists,  setSavedLists]  = useState([]);
+  const [banque,      setBanque]      = useState({}); // { [ankama_id|name]: qty_en_banque }
   const [listName,    setListName]    = useState("Ma liste de craft");
   const [saving,      setSaving]      = useState(false);
   const [loadingId,   setLoadingId]   = useState(null);
@@ -833,25 +834,95 @@ function CraftTab({ session }) {
 
           {/* ── Total ingredients summary ─────────────────────── */}
           {ingredients.length > 0 && (
-            <div style={{background:T.surface,border:"1px solid "+T.accentBorder,borderRadius:12,padding:16,boxShadow:"0 0 0 1px "+T.accentBorder+"44"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div style={{background:T.surface,border:"1px solid "+T.accentBorder,borderRadius:12,overflow:"hidden",boxShadow:"0 0 0 1px "+T.accentBorder+"44"}}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 16px",borderBottom:"1px solid "+T.border}}>
                 <div style={{fontSize:11,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
                   <span>🧮</span> Total ressources nécessaires
                 </div>
-                <span style={{fontSize:10,color:T.muted,background:T.dimmer,borderRadius:5,padding:"2px 8px",border:"1px solid "+T.border}}>
-                  {ingredients.length} type{ingredients.length>1?"s":""}
-                </span>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {Object.values(banque).some(v=>v>0) && (
+                    <button onClick={()=>setBanque({})} style={{fontSize:10,padding:"2px 8px",borderRadius:5,border:"1px solid "+T.border,background:T.dimmer,color:T.muted,cursor:"pointer",fontFamily:T.font}}>
+                      Réinitialiser banque
+                    </button>
+                  )}
+                  <span style={{fontSize:10,color:T.muted,background:T.dimmer,borderRadius:5,padding:"2px 8px",border:"1px solid "+T.border}}>
+                    {ingredients.length} type{ingredients.length>1?"s":""}
+                  </span>
+                </div>
               </div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {ingredients.map((ing,i) => (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:T.dimmer,borderRadius:9,padding:"5px 10px",border:"1px solid "+T.border}}>
-                    {ing.image_url
-                      ? <img src={ing.image_url} alt={ing.name} style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",flexShrink:0}} onError={e=>e.target.style.display="none"} />
-                      : <span style={{fontSize:13}}>🌿</span>}
-                    <span style={{fontSize:12,color:T.text,fontWeight:500}}>{ing.name}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"1px 8px",marginLeft:2}}>×{ing.qty}</span>
-                  </div>
+              {/* Column headers */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 90px 110px 90px",gap:0,padding:"7px 16px",background:T.dimmer,borderBottom:"1px solid "+T.border}}>
+                {["Ressource","Nécessaire","En banque 🏦","Reste à farm"].map((h,i)=>(
+                  <div key={h} style={{fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:i===0?"left":"center"}}>{h}</div>
                 ))}
+              </div>
+              {/* Rows */}
+              <div style={{maxHeight:360,overflowY:"auto"}}>
+                {ingredients.map((ing, i) => {
+                  const key = ing.ankama_id ?? ing.name;
+                  const inBanque = Math.max(0, parseInt(banque[key]||0,10)||0);
+                  const reste = Math.max(0, ing.qty - inBanque);
+                  const complete = reste === 0;
+                  return (
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 90px 110px 90px",gap:0,padding:"9px 16px",borderBottom:"1px solid "+T.border+"55",alignItems:"center",background:complete?"rgba(52,211,153,0.04)":"transparent",transition:"background 0.15s"}}>
+                      {/* Resource name + icon */}
+                      <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+                        <div style={{width:28,height:28,borderRadius:7,background:T.dimmer,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+                          {ing.image_url
+                            ? <img src={ing.image_url} alt={ing.name} style={{width:22,height:22,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} />
+                            : <span style={{fontSize:12}}>🌿</span>}
+                        </div>
+                        <span style={{fontSize:12,color:complete?T.success:T.text,fontWeight:complete?600:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ing.name}</span>
+                        {complete && <span style={{fontSize:10,color:T.success,flexShrink:0}}>✓</span>}
+                      </div>
+                      {/* Nécessaire */}
+                      <div style={{textAlign:"center"}}>
+                        <span style={{fontSize:13,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 10px",display:"inline-block"}}>
+                          {ing.qty}
+                        </span>
+                      </div>
+                      {/* En banque — input éditable */}
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                        <button onClick={()=>setBanque(b=>({...b,[key]:Math.max(0,(parseInt(b[key]||0,10)||0)-1)}))}
+                          style={{width:22,height:22,borderRadius:5,border:"1px solid "+T.border,background:T.dimmer,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,flexShrink:0}}>−</button>
+                        <input
+                          type="number" min={0} value={banque[key]??""} placeholder="0"
+                          onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))}
+                          style={{width:42,background:T.dimmer,border:"1px solid "+(inBanque>0?"rgba(52,211,153,0.35)":T.border),borderRadius:6,padding:"3px 5px",color:inBanque>0?T.success:T.muted,fontSize:12,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}}
+                        />
+                        <button onClick={()=>setBanque(b=>({...b,[key]:(parseInt(b[key]||0,10)||0)+1}))}
+                          style={{width:22,height:22,borderRadius:5,border:"1px solid rgba(52,211,153,0.3)",background:"rgba(52,211,153,0.07)",color:T.success,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,flexShrink:0}}>+</button>
+                      </div>
+                      {/* Reste à farm */}
+                      <div style={{textAlign:"center"}}>
+                        <span style={{fontSize:13,fontWeight:700,
+                          color:complete?T.success:reste<=ing.qty*0.3?"#fb923c":T.danger,
+                          background:complete?"rgba(52,211,153,0.1)":reste<=ing.qty*0.3?"rgba(251,146,60,0.1)":"rgba(248,113,113,0.1)",
+                          border:"1px solid "+(complete?"rgba(52,211,153,0.3)":reste<=ing.qty*0.3?"rgba(251,146,60,0.3)":"rgba(248,113,113,0.3)"),
+                          borderRadius:6,padding:"2px 10px",display:"inline-block"}}>
+                          {complete?"✓ OK":reste}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Summary footer */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 90px 110px 90px",gap:0,padding:"9px 16px",background:T.dimmer,borderTop:"1px solid "+T.border}}>
+                <div style={{fontSize:10,color:T.muted,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{width:14,height:14,borderRadius:3,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:8,color:T.accent,fontWeight:700}}>{ingredients.filter(i=>Math.max(0,i.qty-(parseInt(banque[i.ankama_id??i.name]||0,10)||0))===0).length}/{ingredients.length}</span>
+                  ressources complètes
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <span style={{fontSize:11,fontWeight:700,color:T.accent}}>{ingredients.reduce((s,i)=>s+i.qty,0)}</span>
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <span style={{fontSize:11,fontWeight:700,color:T.success}}>{Object.values(banque).reduce((s,v)=>s+(parseInt(v,10)||0),0)}</span>
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <span style={{fontSize:11,fontWeight:700,color:T.danger}}>{ingredients.reduce((s,i)=>s+Math.max(0,i.qty-(parseInt(banque[i.ankama_id??i.name]||0,10)||0)),0)}</span>
+                </div>
               </div>
             </div>
           )}
