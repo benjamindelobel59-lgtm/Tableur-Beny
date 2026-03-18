@@ -346,6 +346,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   const [saving,setSaving]=useState(false);const [loadingId,setLoadingId]=useState(null);const [ingCache,setIngCache]=useState({});
   const [activeList,setActiveList]=useState(null);const [deleteId,setDeleteId]=useState(null);const [updateId,setUpdateId]=useState(null);
   const [toast,setToast]=useState(null);const [addQty,setAddQty]=useState(1);
+  const [showSaveModal,setShowSaveModal]=useState(false);const [saveModalName,setSaveModalName]=useState("");
   const [subCraftsEnabled,setSubCraftsEnabled]=useState(()=>{try{return localStorage.getItem(`craft_subcrafts_${session.user.id}`)==="true";}catch{return false;}});
   const [subCraftCache,setSubCraftCache]=useState({});
   const [resolvingSubCrafts,setResolvingSubCrafts]=useState(false);
@@ -409,6 +410,8 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   const updateQty=(ankama_id,qty)=>{if(qty<=0)removeItem(ankama_id);else setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===ankama_id?{...ci,qty}:ci));};
   const clearList=()=>{setCraftItems([]);setActiveList(null);setListName("Mon atelier");setUpdateId(null);};
   const saveList=async()=>{if(!listName.trim())return showToast("Donne un nom !","err");if(craftItems.length===0)return showToast("Ajoute des items d'abord !","err");setSaving(true);if(updateId){const{error}=await supabase.from("craft_lists").update({name:listName.trim(),items:craftItems,updated_at:new Date().toISOString()}).eq("id",updateId);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast("Mise à jour ✓");}else{const{error}=await supabase.from("craft_lists").insert([{user_id:session.user.id,name:listName.trim(),items:craftItems}]);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast("Sauvegardée ✓");}loadSavedLists();};
+  const openSaveModal=()=>{if(craftItems.length===0)return showToast("Ajoute des items d'abord !","err");setSaveModalName("");setShowSaveModal(true);};
+  const confirmSaveModal=async()=>{const name=saveModalName.trim();if(!name)return showToast("Donne un nom !","err");setSaving(true);const{error}=await supabase.from("craft_lists").insert([{user_id:session.user.id,name,items:craftItems}]);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast(`"${name}" sauvegardée ✓`);setShowSaveModal(false);loadSavedLists();};
   const deleteList=async(id)=>{await supabase.from("craft_lists").delete().eq("id",id);showToast("Liste supprimée");if(activeList?.id===id)clearList();setDeleteId(null);loadSavedLists();};
   const loadList=(list)=>{setActiveList(list);setCraftItems(list.items||[]);setListName(list.name);setUpdateId(list.id);showToast(`"${list.name}" chargée ✓`);};
   // ── Fetch recipe for a single ingredient id ──
@@ -496,7 +499,6 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
       <div style={{width:195,flexShrink:0,background:T.panel,...pb,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 13px",borderBottom:"1px solid "+T.border}}>
           <span style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Dossiers</span>
-          <button onClick={()=>{clearList();}} style={{width:22,height:22,borderRadius:5,border:"1px solid "+T.border,background:T.surface2,color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>+</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"5px 7px"}}>
           <div onClick={()=>{if(updateId){setActiveList(null);setUpdateId(null);}}} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:7,background:!activeList?T.accentBg:T.surface,border:"1px solid "+(!activeList?T.accentBorder:T.border2),cursor:"pointer",marginBottom:3,transition:"all 0.15s"}}>
@@ -508,10 +510,6 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
             <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:isAct?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{list.name}</div><div style={{fontSize:9,color:T.muted}}>{(list.items||[]).length} craft{(list.items||[]).length!==1?"s":""}</div></div>
             <button onClick={e=>{e.stopPropagation();setDeleteId(list.id);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,padding:1,flexShrink:0,opacity:0.55}}>✕</button>
           </div>);})}
-        </div>
-        <div style={{padding:"9px 7px",borderTop:"1px solid "+T.border}}>
-          <input value={listName} onChange={e=>setListName(e.target.value)} style={{...fi,padding:"6px 9px",fontSize:11,marginBottom:5}} placeholder="Nom du dossier..." />
-          <button onClick={saveList} disabled={saving} style={{width:"100%",padding:"6px",borderRadius:7,border:"none",background:saving?T.surface2:T.accent,color:saving?T.muted:"#fff",fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:T.font,fontSize:11}}>{saving?"…":updateId?"🔄 Mettre à jour":"💾 Sauvegarder"}</button>
         </div>
       </div>
       {/* ── COL 2 : AJOUTER + LISTE ── */}
@@ -530,6 +528,8 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
             <button onClick={()=>setAddQty(q=>Math.max(1,q-1))} style={{width:20,height:20,borderRadius:4,border:"1px solid "+T.border,background:T.surface2,color:T.text,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
             <input type="number" min={1} value={addQty} onChange={e=>setAddQty(Math.max(1,parseInt(e.target.value)||1))} style={{...fi,width:38,padding:"2px",textAlign:"center",fontSize:12,fontWeight:700}} />
             <button onClick={()=>setAddQty(q=>q+1)} style={{width:20,height:20,borderRadius:4,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+            <div style={{flex:1}}/>
+            <button onClick={openSaveModal} title="Sauvegarder l'atelier" style={{height:24,padding:"0 9px",borderRadius:4,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:11,fontWeight:700,letterSpacing:0.5,display:"flex",alignItems:"center",gap:4,flexShrink:0,whiteSpace:"nowrap"}}>💾 <span>Sauvegarder</span></button>
           </div>
         </div>
         {results.length>0&&(<div style={{maxHeight:200,overflowY:"auto",borderBottom:"1px solid "+T.border}}>
@@ -691,6 +691,29 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
         </div>
       </div>
       {deleteId&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,backdropFilter:"blur(8px)"}}><div style={{background:T.surface,border:"1px solid rgba(239,68,68,0.3)",borderRadius:15,padding:22,maxWidth:290,textAlign:"center",margin:16,boxShadow:T.shadowLg}}><div style={{fontSize:26,marginBottom:7}}>🗑️</div><h3 style={{color:T.danger,margin:"0 0 5px",fontFamily:T.font}}>Supprimer cette liste ?</h3><p style={{color:T.muted,margin:"0 0 16px",fontSize:12}}>Action irréversible.</p><div style={{display:"flex",gap:7}}><button onClick={()=>setDeleteId(null)} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font}}>Annuler</button><button onClick={()=>deleteList(deleteId)} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font}}>Supprimer</button></div></div></div>)}
+      {showSaveModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,backdropFilter:"blur(8px)"}}>
+          <div style={{background:T.surface,border:"1px solid "+T.accentBorder,borderRadius:4,padding:24,width:"100%",maxWidth:360,boxShadow:T.shadowLg,position:"relative",margin:16}}>
+            <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:T.accent,borderRadius:"4px 4px 0 0"}}/>
+            <div style={{fontSize:22,textAlign:"center",marginBottom:10}}>💾</div>
+            <h3 style={{margin:"0 0 4px",color:T.text,fontSize:15,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase",textAlign:"center"}}>SAUVEGARDER L'ATELIER</h3>
+            <p style={{margin:"0 0 16px",fontSize:11,color:T.muted,textAlign:"center",fontFamily:"'DM Sans',sans-serif"}}>{craftItems.length} craft{craftItems.length!==1?"s":""} seront sauvegardés</p>
+            <label style={{display:"block",color:T.muted,fontSize:9,marginBottom:6,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>NOM DE LA SAVE</label>
+            <input
+              autoFocus
+              value={saveModalName}
+              onChange={e=>setSaveModalName(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter")confirmSaveModal();if(e.key==="Escape")setShowSaveModal(false);}}
+              placeholder="ex: Farm Kanig semaine 1..."
+              style={{width:"100%",background:T.surface2,border:"1px solid "+T.accentBorder,borderRadius:3,padding:"10px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box",marginBottom:14}}
+            />
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setShowSaveModal(false)} style={{flex:1,padding:"10px",borderRadius:3,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:13,letterSpacing:1,fontWeight:700}}>ANNULER</button>
+              <button onClick={confirmSaveModal} disabled={saving||!saveModalName.trim()} style={{flex:2,padding:"10px",borderRadius:3,border:"none",background:saving||!saveModalName.trim()?T.surface2:T.accent,color:saving||!saveModalName.trim()?T.muted:"#fff",fontWeight:700,cursor:saving||!saveModalName.trim()?"not-allowed":"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:13,letterSpacing:1}}>{saving?"SAUVEGARDE...":"💾 SAUVEGARDER"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast&&(<div style={{position:"fixed",bottom:22,right:22,background:toast.type==="err"?"#dc2626":T.accent,color:"#fff",padding:"9px 15px",borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:300,fontFamily:T.font}}>{toast.type==="err"?"❌":"✅"} {toast.msg}</div>)}
     </div>
   );
@@ -735,6 +758,9 @@ function BuildTab({session, onSendToAtelier}){
   const [searching,setSearching]=useState(false);
   const [tip,setTip]=useState({vis:false,item:null,x:0,y:0});
   const [toast,setToast]=useState(null);
+  const [showBuildSaveModal,setShowBuildSaveModal]=useState(false);
+  const [buildSaveModalName,setBuildSaveModalName]=useState('');
+  const [savingBuild,setSavingBuild]=useState(false);
   const debRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(builds));}catch{}},[builds]);
   const showToast=(msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
@@ -825,6 +851,8 @@ function BuildTab({session, onSendToAtelier}){
   const loadBuild=(b)=>{setBuild(b);setBuildName(b.name);setActiveBuildId(b.id);};
   const newBuild=()=>{setBuild(defaultBuild());setBuildName('Mon Build');setActiveBuildId(null);};
   const deleteBuild=(id)=>{setBuilds(p=>p.filter(b=>b.id!==id));if(activeBuildId===id)newBuild();showToast('Build supprimé');};
+  const openBuildSaveModal=()=>{setBuildSaveModalName(buildName||'Mon Build');setShowBuildSaveModal(true);};
+  const confirmBuildSaveModal=()=>{const name=buildSaveModalName.trim();if(!name)return;setSavingBuild(true);const id=Date.now().toString();const b={...build,name,id};setBuilds(p=>[b,...p]);setActiveBuildId(id);setBuildName(name);setSavingBuild(false);showToast(`"${name}" sauvegardé ✓`);setShowBuildSaveModal(false);};
 
   // ── Send equipped items to craft atelier ──
   const sendToAtelier=()=>{
@@ -910,7 +938,6 @@ function BuildTab({session, onSendToAtelier}){
       <div style={{width:185,flexShrink:0,...cardS,display:'flex',flexDirection:'column'}}>
         <div style={{padding:'10px 12px',borderBottom:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:10,color:T.muted,textTransform:'uppercase',letterSpacing:2,fontWeight:700}}>Mes Builds</span>
-          <button onClick={newBuild} style={{width:22,height:22,borderRadius:5,border:'1px solid '+T.border,background:T.surface2,color:T.textSub,cursor:'pointer',fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:T.font}}>+</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'5px 7px'}}>
           {builds.length===0&&<div style={{padding:'24px 8px',textAlign:'center',color:T.muted,fontSize:11}}>Aucun build</div>}
@@ -925,11 +952,9 @@ function BuildTab({session, onSendToAtelier}){
             </div>
           ))}
         </div>
-        <div style={{padding:'8px 7px',borderTop:'1px solid '+T.border,display:'flex',flexDirection:'column',gap:5}}>
-          <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:'5px 9px',fontSize:11}} placeholder="Nom du build…"/>
-          <button onClick={saveBuild} style={{width:'100%',padding:'6px',borderRadius:7,border:'none',background:T.accent,color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>💾 Sauvegarder</button>
-          {hasEquipped&&<button onClick={sendToAtelier} style={{width:'100%',padding:'6px',borderRadius:7,border:'1px solid '+T.accentBorder,background:T.accentBg,color:T.accent,fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>📦 → Atelier de Craft</button>}
-        </div>
+        {hasEquipped&&<div style={{padding:'8px 7px',borderTop:'1px solid '+T.border}}>
+          <button onClick={sendToAtelier} style={{width:'100%',padding:'6px',borderRadius:7,border:'1px solid '+T.accentBorder,background:T.accentBg,color:T.accent,fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>📦 → Atelier de Craft</button>
+        </div>}
       </div>
 
       {/* ── COL 2 : MANNEQUIN ── */}
@@ -944,6 +969,7 @@ function BuildTab({session, onSendToAtelier}){
               <div style={{fontSize:10,color:T.muted}}>{build.classe} — Niv. {build.level}</div>
             </div>
             <input type="number" min={1} max={200} value={build.level} onChange={e=>setBuild(b=>({...b,level:Math.min(200,Math.max(1,parseInt(e.target.value)||1))}))} style={{...fi,width:52,padding:'4px 4px',fontSize:12,textAlign:'center',flexShrink:0}}/>
+            <button onClick={openBuildSaveModal} title="Sauvegarder ce build" style={{height:32,padding:'0 10px',borderRadius:5,border:'1px solid '+T.accentBorder,background:T.accentBg,color:T.accent,cursor:'pointer',fontFamily:"'Rajdhani',sans-serif",fontSize:11,fontWeight:700,letterSpacing:0.5,display:'flex',alignItems:'center',gap:4,flexShrink:0,whiteSpace:'nowrap'}}>💾</button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:4}}>
             {CLASSES.map(c=>(
@@ -1151,6 +1177,29 @@ function BuildTab({session, onSendToAtelier}){
         );
       })()}
 
+      {showBuildSaveModal&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,backdropFilter:'blur(8px)'}}>
+          <div style={{background:T.surface,border:'1px solid '+T.accentBorder,borderRadius:4,padding:24,width:'100%',maxWidth:360,boxShadow:T.shadowLg,position:'relative',margin:16}}>
+            <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:T.accent,borderRadius:'4px 4px 0 0'}}/>
+            <div style={{fontSize:22,textAlign:'center',marginBottom:10}}>💾</div>
+            <h3 style={{margin:'0 0 4px',color:T.text,fontSize:15,fontWeight:700,fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:'uppercase',textAlign:'center'}}>SAUVEGARDER LE BUILD</h3>
+            <p style={{margin:'0 0 16px',fontSize:11,color:T.muted,textAlign:'center',fontFamily:"'DM Sans',sans-serif"}}>{build.classe} — Niv. {build.level}</p>
+            <label style={{display:'block',color:T.muted,fontSize:9,marginBottom:6,fontWeight:700,letterSpacing:2,textTransform:'uppercase',fontFamily:"'Rajdhani',sans-serif"}}>NOM DU BUILD</label>
+            <input
+              autoFocus
+              value={buildSaveModalName}
+              onChange={e=>setBuildSaveModalName(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter')confirmBuildSaveModal();if(e.key==='Escape')setShowBuildSaveModal(false);}}
+              placeholder="ex: Iop full Force PVP..."
+              style={{width:'100%',background:T.surface2,border:'1px solid '+T.accentBorder,borderRadius:3,padding:'10px 12px',color:T.text,fontSize:13,outline:'none',fontFamily:"'DM Sans',sans-serif",boxSizing:'border-box',marginBottom:14}}
+            />
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setShowBuildSaveModal(false)} style={{flex:1,padding:'10px',borderRadius:3,border:'1px solid '+T.border,background:'transparent',color:T.muted,cursor:'pointer',fontFamily:"'Rajdhani',sans-serif",fontSize:13,letterSpacing:1,fontWeight:700}}>ANNULER</button>
+              <button onClick={confirmBuildSaveModal} disabled={savingBuild||!buildSaveModalName.trim()} style={{flex:2,padding:'10px',borderRadius:3,border:'none',background:savingBuild||!buildSaveModalName.trim()?T.surface2:T.accent,color:savingBuild||!buildSaveModalName.trim()?T.muted:'#fff',fontWeight:700,cursor:savingBuild||!buildSaveModalName.trim()?'not-allowed':'pointer',fontFamily:"'Rajdhani',sans-serif",fontSize:13,letterSpacing:1}}>{savingBuild?'SAUVEGARDE...':'💾 SAUVEGARDER'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast&&<div style={{position:'fixed',bottom:20,right:20,background:toast.type==='err'?'#dc2626':T.accent,color:'#fff',padding:'9px 15px',borderRadius:9,fontWeight:700,fontSize:13,boxShadow:T.shadowLg,zIndex:300,fontFamily:T.font}}>{toast.type==='err'?'❌':'✅'} {toast.msg}</div>}
     </div>
   );
