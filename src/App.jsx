@@ -503,7 +503,7 @@ function CraftTab({ session }) {
                           <span style={{fontSize:10,color:T.muted}}>/{total}</span>
                         </div>
                       </div>);})}
-                    </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)}
+                      </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)
                     )}
                   </div>
                 );
