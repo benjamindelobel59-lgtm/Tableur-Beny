@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -15,7 +15,6 @@ const T = {
   font:"'DM Sans', system-ui, sans-serif",
 };
 
-
 // ─── CODE D'ACCÈS ─────────────────────────────────────────────
 const ACCESS_CODE = "FMX";
 function GatePage({ onSuccess }) {
@@ -24,9 +23,8 @@ function GatePage({ onSuccess }) {
   const [shake, setShake]   = useState(false);
 
   const tryCode = () => {
-    if (input.trim().toUpperCase() === ACCESS_CODE) {
-      onSuccess();
-    } else {
+    if (input.trim().toUpperCase() === ACCESS_CODE) { onSuccess(); }
+    else {
       setError(true); setShake(true); setInput("");
       setTimeout(() => setShake(false), 600);
       setTimeout(() => setError(false), 2500);
@@ -111,36 +109,24 @@ const WEBHOOK_EVENTS = [
   {id:"levelup",   label:"Level up",             icon:"⭐", color:"#fbbf24",   desc:"Quand le level d'un perso augmente"},
 ];
 
-// ─── BUILD DISCORD EMBED (minimaliste) ───────────────────────
 const buildEmbed = (type, char, extra={}) => {
   const surcat = char.surcat||"PVM";
   const si = surcat==="PVP"?"🏆":"🐉";
   const footer = { text:"Tableur By Beny" };
   const ts = new Date().toISOString();
-
-  const embed = (color, description) => ({
-    embeds:[{ description, color, footer, timestamp:ts }]
-  });
-
+  const embed = (color, description) => ({ embeds:[{ description, color, footer, timestamp:ts }] });
   if (type==="mort")    return embed(0xf87171, `💀 **${char.nom}** (${char.classe} • ${si} ${surcat}) est mort — Level ${char.level} — ⚠️ Pense à le reprendre !`);
   if (type==="etat")    return embed(parseInt((ETAT_COLORS[extra.newEtat]||"#818cf8").replace("#",""),16), `🔄 **${char.nom}** (${char.classe} • ${si} ${surcat}) : ${extra.oldEtat} → **${extra.newEtat}**`);
   if (type==="surcat")  return embed(extra.newSurcat==="PVP"?0xf43f5e:0x34d399, `⚔️ **${char.nom}** (${char.classe}) a changé de dossier : ${extra.oldSurcat==="PVP"?"🏆":"🐉"} ${extra.oldSurcat} → ${extra.newSurcat==="PVP"?"🏆":"🐉"} **${extra.newSurcat}**`);
   if (type==="add")     return embed(0x34d399, `✨ **${char.nom}** (${char.classe} • ${si} ${surcat}) a été ajouté — Level ${char.level} — ${char.etat}`);
   if (type==="levelup") return embed(0xfbbf24, `⭐ **${char.nom}** (${char.classe} • ${si} ${surcat}) a level up : ${extra.oldLevel} → **${extra.newLevel}**`);
-
   return null;
 };
 
-// ─── SEND WEBHOOK ─────────────────────────────────────────────
 const sendWebhook = async (webhookUrl, payload) => {
   if (!webhookUrl) return;
-  try {
-    await fetch(webhookUrl, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload),
-    });
-  } catch(e) { console.error("Webhook error:", e); }
+  try { await fetch(webhookUrl, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) }); }
+  catch(e) { console.error("Webhook error:", e); }
 };
 
 // ─── WEBHOOKS TAB ─────────────────────────────────────────────
@@ -151,17 +137,11 @@ function WebhooksTab({ session }) {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [msg, setMsg]         = useState(null);
-
   const storageKey = "webhook_config_"+session.user.id;
 
   useEffect(()=>{
     const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      const cfg = JSON.parse(raw);
-      setUrl(cfg.url||"");
-      setSaved(cfg.url||"");
-      setEvents(cfg.events||{mort:true,etat:true,surcat:true,add:true,levelup:true});
-    }
+    if (raw) { const cfg = JSON.parse(raw); setUrl(cfg.url||""); setSaved(cfg.url||""); setEvents(cfg.events||{mort:true,etat:true,surcat:true,add:true,levelup:true}); }
   },[]);
 
   const save = () => {
@@ -176,27 +156,12 @@ function WebhooksTab({ session }) {
   const test = async () => {
     if (!url) return setMsg({type:"error",text:"Entre d'abord l'URL du webhook !"});
     setTesting(true);
-    const payload = {
-      embeds:[{
-        title:"🔔 Test — Tableur By Beny",
-        description:"Ton webhook est bien connecté ! Les notifications fonctionnent correctement.",
-        color:0xf59e0b,
-        fields:[
-          {name:"✅ Statut",    value:"Connecté",            inline:true},
-          {name:"👤 Compte",   value:session.user.email,     inline:true},
-          {name:"📅 Date",     value:new Date().toLocaleString("fr-FR"), inline:true},
-        ],
-        footer:{text:"Tableur By Beny • Serveur Héroïque"},
-        timestamp:new Date().toISOString(),
-      }]
-    };
+    const payload = { embeds:[{ title:"🔔 Test — Tableur By Beny", description:"Ton webhook est bien connecté ! Les notifications fonctionnent correctement.", color:0xf59e0b, fields:[{name:"✅ Statut",value:"Connecté",inline:true},{name:"👤 Compte",value:session.user.email,inline:true},{name:"📅 Date",value:new Date().toLocaleString("fr-FR"),inline:true}], footer:{text:"Tableur By Beny • Serveur Héroïque"}, timestamp:new Date().toISOString() }] };
     try {
       const res = await fetch(url, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       if (res.ok) setMsg({type:"success",text:"✅ Message test envoyé sur Discord !"});
       else setMsg({type:"error",text:"❌ URL invalide ou webhook supprimé"});
-    } catch(e) {
-      setMsg({type:"error",text:"❌ Erreur réseau — vérifie l'URL"});
-    }
+    } catch(e) { setMsg({type:"error",text:"❌ Erreur réseau — vérifie l'URL"}); }
     setTesting(false);
     setTimeout(()=>setMsg(null),4000);
   };
@@ -212,17 +177,10 @@ function WebhooksTab({ session }) {
         </div>
         <div style={{fontSize:12,color:T.muted}}>Reçois des messages automatiques dans ton salon Discord à chaque modification.</div>
       </div>
-
-      {/* ÉTAPES */}
       <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,padding:18,marginBottom:16}}>
         <div style={{fontSize:11,color:T.accent,letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700}}>📋 Comment ça marche ?</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[
-            ["1","Va dans ton serveur Discord → paramètres d'un salon → Intégrations → Webhooks"],
-            ["2","Clique sur \"Nouveau Webhook\", donne-lui un nom (ex: Tableur Beny)"],
-            ["3","Copie l'URL du webhook et colle-la ci-dessous"],
-            ["4","Choisis les événements qui t'intéressent et sauvegarde !"],
-          ].map(([n,t])=>(
+          {[["1","Va dans ton serveur Discord → paramètres d'un salon → Intégrations → Webhooks"],["2","Clique sur \"Nouveau Webhook\", donne-lui un nom (ex: Tableur Beny)"],["3","Copie l'URL du webhook et colle-la ci-dessous"],["4","Choisis les événements qui t'intéressent et sauvegarde !"]].map(([n,t])=>(
             <div key={n} style={{display:"flex",alignItems:"flex-start",gap:10}}>
               <span style={{width:22,height:22,borderRadius:6,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.accent,flexShrink:0}}>{n}</span>
               <span style={{fontSize:12,color:T.textSub,lineHeight:1.5}}>{t}</span>
@@ -230,50 +188,33 @@ function WebhooksTab({ session }) {
           ))}
         </div>
       </div>
-
-      {/* URL WEBHOOK */}
       <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,padding:18,marginBottom:16}}>
         <div style={{fontSize:11,color:T.accent,letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontWeight:700}}>🔗 URL du Webhook Discord</div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <input
-            value={url}
-            onChange={e=>setUrl(e.target.value)}
-            placeholder="https://discord.com/api/webhooks/..."
-            style={{...fi,flex:1,fontSize:12}}
-          />
-          {saved && url===saved && (
-            <span style={{fontSize:10,color:T.success,whiteSpace:"nowrap",fontWeight:600}}>✓ Sauvegardé</span>
-          )}
+          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://discord.com/api/webhooks/..." style={{...fi,flex:1,fontSize:12}} />
+          {saved && url===saved && <span style={{fontSize:10,color:T.success,whiteSpace:"nowrap",fontWeight:600}}>✓ Sauvegardé</span>}
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
-          <button onClick={test} disabled={testing} style={{flex:1,padding:"9px",borderRadius:9,border:"1px solid #5865F240",background:"#5865F215",color:T.discord,fontWeight:600,cursor:testing?"not-allowed":"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          <button onClick={test} disabled={testing} style={{flex:1,padding:"9px",borderRadius:9,border:"1px solid #5865F240",background:"#5865F215",color:T.discord,fontWeight:600,cursor:testing?"not-allowed":"pointer",fontFamily:T.font,fontSize:12}}>
             {testing?"⏳ Envoi...":"🧪 Tester la connexion"}
           </button>
-          <button onClick={save} disabled={saving} style={{flex:1,padding:"9px",borderRadius:9,border:"none",background:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:T.bg,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:T.font,fontSize:12,boxShadow:"0 4px 14px "+T.accent+"40"}}>
+          <button onClick={save} disabled={saving} style={{flex:1,padding:"9px",borderRadius:9,border:"none",background:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:T.bg,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:T.font,fontSize:12}}>
             {saving?"✓ Sauvegardé !":"💾 Sauvegarder"}
           </button>
         </div>
-        {msg && (
-          <div style={{marginTop:10,padding:"9px 13px",background:msg.type==="error"?"rgba(248,113,113,0.1)":"rgba(52,211,153,0.1)",border:"1px solid "+(msg.type==="error"?"rgba(248,113,113,0.25)":"rgba(52,211,153,0.25)"),borderRadius:8,color:msg.type==="error"?T.danger:T.success,fontSize:12,fontWeight:600}}>
-            {msg.text}
-          </div>
-        )}
+        {msg&&<div style={{marginTop:10,padding:"9px 13px",background:msg.type==="error"?"rgba(248,113,113,0.1)":"rgba(52,211,153,0.1)",border:"1px solid "+(msg.type==="error"?"rgba(248,113,113,0.25)":"rgba(52,211,153,0.25)"),borderRadius:8,color:msg.type==="error"?T.danger:T.success,fontSize:12,fontWeight:600}}>{msg.text}</div>}
       </div>
-
-      {/* ÉVÉNEMENTS */}
       <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:13,padding:18}}>
         <div style={{fontSize:11,color:T.accent,letterSpacing:2,textTransform:"uppercase",marginBottom:14,fontWeight:700}}>⚡ Événements actifs</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {WEBHOOK_EVENTS.map(ev=>(
-            <div key={ev.id} onClick={()=>toggleEvent(ev.id)}
-              style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:events[ev.id]?ev.color+"0d":T.dimmer,border:"1px solid "+(events[ev.id]?ev.color+"35":T.border),borderRadius:10,cursor:"pointer",transition:"all 0.15s"}}>
+            <div key={ev.id} onClick={()=>toggleEvent(ev.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:events[ev.id]?ev.color+"0d":T.dimmer,border:"1px solid "+(events[ev.id]?ev.color+"35":T.border),borderRadius:10,cursor:"pointer",transition:"all 0.15s"}}>
               <div style={{width:36,height:36,borderRadius:9,background:ev.color+"15",border:"1px solid "+ev.color+"30",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{ev.icon}</div>
               <div style={{flex:1}}>
                 <div style={{fontWeight:600,fontSize:13,color:events[ev.id]?T.text:T.muted}}>{ev.label}</div>
                 <div style={{fontSize:11,color:T.muted,marginTop:1}}>{ev.desc}</div>
               </div>
-              {/* Toggle */}
-              <div style={{width:42,height:24,borderRadius:12,background:events[ev.id]?"linear-gradient(135deg,"+T.accent+","+T.accent2+")":T.border,position:"relative",flexShrink:0,transition:"all 0.2s",boxShadow:events[ev.id]?"0 2px 8px "+T.accent+"40":"none"}}>
+              <div style={{width:42,height:24,borderRadius:12,background:events[ev.id]?"linear-gradient(135deg,"+T.accent+","+T.accent2+")":T.border,position:"relative",flexShrink:0,transition:"all 0.2s"}}>
                 <div style={{position:"absolute",top:3,left:events[ev.id]?20:3,width:18,height:18,borderRadius:9,background:"#fff",transition:"all 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}} />
               </div>
             </div>
@@ -299,18 +240,12 @@ function AuthPage() {
   const handle = async () => {
     setError(""); setSuccess(""); setLoading(true);
     try {
-      if (mode==="login") {
-        const {error} = await supabase.auth.signInWithPassword({email,password});
-        if (error) throw error;
-      } else {
-        const {error} = await supabase.auth.signUp({email,password});
-        if (error) throw error;
-        setSuccess("Compte créé ! Vérifie ton email puis connecte-toi.");
-        setMode("login"); setLoading(false); return;
-      }
+      if (mode==="login") { const {error} = await supabase.auth.signInWithPassword({email,password}); if (error) throw error; }
+      else { const {error} = await supabase.auth.signUp({email,password}); if (error) throw error; setSuccess("Compte créé ! Vérifie ton email puis connecte-toi."); setMode("login"); setLoading(false); return; }
     } catch(e) { setError(e.message||"Une erreur est survenue"); }
     setLoading(false);
   };
+
   return (
     <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:-300,left:-200,width:700,height:700,background:"radial-gradient(circle,rgba(245,158,11,0.07) 0%,transparent 70%)",pointerEvents:"none"}} />
@@ -337,8 +272,8 @@ function AuthPage() {
               </div>
             ))}
           </div>
-          {error   && <div style={{marginTop:12,padding:"9px 13px",background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.2)",borderRadius:8,color:T.danger,fontSize:12}}>❌ {error}</div>}
-          {success && <div style={{marginTop:12,padding:"9px 13px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:8,color:T.success,fontSize:12}}>✅ {success}</div>}
+          {error&&<div style={{marginTop:12,padding:"9px 13px",background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.2)",borderRadius:8,color:T.danger,fontSize:12}}>❌ {error}</div>}
+          {success&&<div style={{marginTop:12,padding:"9px 13px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:8,color:T.success,fontSize:12}}>✅ {success}</div>}
           <button onClick={handle} disabled={loading} style={{width:"100%",marginTop:18,padding:"12px",borderRadius:10,border:"none",background:loading?T.dimmer:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:loading?T.muted:T.bg,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:T.font,fontSize:14,transition:"all 0.2s"}}>
             {loading?"Chargement...":(mode==="login"?"Se connecter":"Créer mon compte")}
           </button>
@@ -367,14 +302,8 @@ function PartagesTab({ session, characters, showToast }) {
 
   useEffect(()=>{ loadMyShares(); loadReceivedShares(); },[]);
 
-  const loadMyShares = async()=>{
-    const {data} = await supabase.from("shares").select("*").eq("owner_id",session.user.id).order("created_at",{ascending:false});
-    if(data) setMyShares(data);
-  };
-  const loadReceivedShares = async()=>{
-    const {data} = await supabase.from("shares").select("*").eq("shared_with_email",session.user.email).order("created_at",{ascending:false});
-    if(data) setReceivedShares(data);
-  };
+  const loadMyShares = async()=>{ const {data} = await supabase.from("shares").select("*").eq("owner_id",session.user.id).order("created_at",{ascending:false}); if(data) setMyShares(data); };
+  const loadReceivedShares = async()=>{ const {data} = await supabase.from("shares").select("*").eq("shared_with_email",session.user.email).order("created_at",{ascending:false}); if(data) setReceivedShares(data); };
 
   const createShare = async()=>{
     if(!shareEmail.trim()) return showToast("Email requis !","error");
@@ -384,15 +313,10 @@ function PartagesTab({ session, characters, showToast }) {
     const {error} = await supabase.from("shares").insert([{owner_id:session.user.id,owner_email:session.user.email,shared_with_email:shareEmail.trim().toLowerCase(),share_type:shareType,compte_name:shareType==="compte"?shareCompte:null,can_edit:canEdit}]);
     setSaving(false);
     if(error) return showToast("Erreur : "+error.message,"error");
-    showToast("Partage créé ✓");
-    setShowModal(false); setShareEmail(""); setShareType("all"); setShareCompte(""); setCanEdit(false);
-    loadMyShares();
+    showToast("Partage créé ✓"); setShowModal(false); setShareEmail(""); setShareType("all"); setShareCompte(""); setCanEdit(false); loadMyShares();
   };
 
-  const deleteShare = async(id)=>{
-    await supabase.from("shares").delete().eq("id",id);
-    showToast("Partage supprimé"); loadMyShares();
-  };
+  const deleteShare = async(id)=>{ await supabase.from("shares").delete().eq("id",id); showToast("Partage supprimé"); loadMyShares(); };
 
   const openReceivedShare = async(share)=>{
     setViewShare(share); setViewChars([]); setViewLoading(true);
@@ -479,22 +403,19 @@ function PartagesTab({ session, characters, showToast }) {
             </div>
           ):(
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {myShares.map(s=>{
-                const t=SHARE_TYPE_LABELS[s.share_type];
-                return (
-                  <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
-                    <div style={{width:36,height:36,borderRadius:9,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{t.icon}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div>
-                      <div style={{fontSize:10,color:T.muted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ <span style={{color:T.accent}}>{s.shared_with_email}</span></div>
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modifiable":"👁️ Lecture"}</span>
-                      <button onClick={()=>deleteShare(s.id)} style={{background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.18)",borderRadius:6,padding:"2px 8px",color:T.danger,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Supprimer</button>
-                    </div>
+              {myShares.map(s=>{ const t=SHARE_TYPE_LABELS[s.share_type]; return (
+                <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{t.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ <span style={{color:T.accent}}>{s.shared_with_email}</span></div>
                   </div>
-                );
-              })}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                    <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modifiable":"👁️ Lecture"}</span>
+                    <button onClick={()=>deleteShare(s.id)} style={{background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.18)",borderRadius:6,padding:"2px 8px",color:T.danger,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Supprimer</button>
+                  </div>
+                </div>
+              );})}
             </div>
           )}
         </div>
@@ -510,22 +431,19 @@ function PartagesTab({ session, characters, showToast }) {
             </div>
           ):(
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {receivedShares.map(s=>{
-                const t=SHARE_TYPE_LABELS[s.share_type];
-                return (
-                  <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
-                    <div style={{width:36,height:36,borderRadius:9,background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{t.icon}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div>
-                      <div style={{fontSize:10,color:T.muted,marginTop:2}}>De <span style={{color:T.success}}>{s.owner_email}</span></div>
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                      <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modifiable":"👁️ Lecture"}</span>
-                      {s.share_type!=="craft"&&<button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 8px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Voir</button>}
-                    </div>
+              {receivedShares.map(s=>{ const t=SHARE_TYPE_LABELS[s.share_type]; return (
+                <div key={s.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,padding:"13px 15px",display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{t.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:2}}>De <span style={{color:T.success}}>{s.owner_email}</span></div>
                   </div>
-                );
-              })}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                    <span style={{fontSize:9,padding:"2px 7px",borderRadius:20,background:s.can_edit?"rgba(52,211,153,0.12)":"rgba(245,158,11,0.12)",color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modifiable":"👁️ Lecture"}</span>
+                    {s.share_type!=="craft"&&<button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 8px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>Voir</button>}
+                  </div>
+                </div>
+              );})}
             </div>
           )}
         </div>
@@ -578,6 +496,459 @@ function PartagesTab({ session, characters, showToast }) {
   );
 }
 
+// ─── DOFUSDU API ──────────────────────────────────────────────
+const DOFUSDU_BASE = "https://api.dofusdu.de/dofus2/fr";
+
+const CRAFT_SEARCH_TYPES = [
+  {id:"equipment",  label:"Équipements", icon:"⚔️"},
+  {id:"resources",  label:"Ressources",  icon:"🌿"},
+  {id:"consumables",label:"Consommables",icon:"🧪"},
+];
+
+// ─── CRAFT TAB ────────────────────────────────────────────────
+function CraftTab({ session }) {
+  const [query,       setQuery]       = useState("");
+  const [searchType,  setSearchType]  = useState("equipment");
+  const [results,     setResults]     = useState([]);
+  const [searching,   setSearching]   = useState(false);
+  const [craftItems,  setCraftItems]  = useState([]); // [{item:{ankama_id,name,level,image_url,subtype,recipe[]},qty}]
+  const [savedLists,  setSavedLists]  = useState([]);
+  const [listName,    setListName]    = useState("Ma liste de craft");
+  const [saving,      setSaving]      = useState(false);
+  const [loadingId,   setLoadingId]   = useState(null);
+  const [ingCache,    setIngCache]    = useState({});
+  const [activeList,  setActiveList]  = useState(null);
+  const [deleteId,    setDeleteId]    = useState(null);
+  const [craftToast,  setCraftToast]  = useState(null);
+  const [showSaved,   setShowSaved]   = useState(true);
+  const [updateId,    setUpdateId]    = useState(null); // id of list being updated
+  const debounceRef = useRef(null);
+
+  const showCraftToast = (msg, type="success") => {
+    setCraftToast({msg,type});
+    setTimeout(()=>setCraftToast(null), 2800);
+  };
+
+  useEffect(() => { loadSavedLists(); }, []);
+
+  const loadSavedLists = async () => {
+    const {data} = await supabase.from("craft_lists").select("*").eq("user_id",session.user.id).order("created_at",{ascending:false});
+    if (data) setSavedLists(data);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query.trim() || query.length < 2) { setResults([]); return; }
+    debounceRef.current = setTimeout(() => doSearch(query, searchType), 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [query, searchType]);
+
+  const doSearch = async (q, type) => {
+    setSearching(true);
+    try {
+      const res = await fetch(`${DOFUSDU_BASE}/items/${type}/search?query=${encodeURIComponent(q)}&limit=20`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setResults(Array.isArray(data) ? data : []);
+    } catch { setResults([]); }
+    setSearching(false);
+  };
+
+  const fetchIngredient = async (ankama_id, subtype) => {
+    const cacheKey = `${subtype}_${ankama_id}`;
+    if (ingCache[cacheKey]) return ingCache[cacheKey];
+    const type = ["equipment","resources","consumables"].includes(subtype) ? subtype : "resources";
+    try {
+      const res = await fetch(`${DOFUSDU_BASE}/items/${type}/${ankama_id}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setIngCache(prev => ({...prev,[cacheKey]:data}));
+      return data;
+    } catch { return null; }
+  };
+
+  const addItem = async (item) => {
+    // If already in list, just increment
+    const existing = craftItems.find(ci => ci.item.ankama_id === item.ankama_id);
+    if (existing) {
+      setCraftItems(prev => prev.map(ci => ci.item.ankama_id === item.ankama_id ? {...ci, qty: ci.qty+1} : ci));
+      showCraftToast(`${item.name} × ${existing.qty+1} ✓`);
+      return;
+    }
+    // Fetch full detail
+    setLoadingId(item.ankama_id);
+    try {
+      const res = await fetch(`${DOFUSDU_BASE}/items/${searchType}/${item.ankama_id}`);
+      const detail = res.ok ? await res.json() : item;
+
+      // Fetch ingredient details in parallel
+      let recipe = detail.recipe || [];
+      if (recipe.length > 0) {
+        const ingDetails = await Promise.all(
+          recipe.map(r => fetchIngredient(r.item_ankama_id, r.item_subtype || "resources"))
+        );
+        recipe = recipe.map((r, i) => ({
+          ankama_id:  r.item_ankama_id,
+          name:       ingDetails[i]?.name ?? "???",
+          image_url:  ingDetails[i]?.image_urls?.icon ?? null,
+          quantity:   r.quantity,
+          subtype:    r.item_subtype ?? "resources",
+        }));
+      }
+
+      const newItem = {
+        ankama_id: detail.ankama_id ?? item.ankama_id,
+        name:      detail.name ?? item.name,
+        level:     detail.level ?? item.level ?? null,
+        image_url: detail.image_urls?.icon ?? item.image_urls?.icon ?? null,
+        subtype:   searchType,
+        recipe,
+      };
+      setCraftItems(prev => [...prev, {item: newItem, qty: 1}]);
+      showCraftToast(`${newItem.name} ajouté ✓`);
+    } catch {
+      showCraftToast("Erreur lors du chargement", "error");
+    }
+    setLoadingId(null);
+  };
+
+  const removeItem = (ankama_id) => setCraftItems(prev => prev.filter(ci => ci.item.ankama_id !== ankama_id));
+  const updateQty  = (ankama_id, qty) => { if (qty <= 0) removeItem(ankama_id); else setCraftItems(prev => prev.map(ci => ci.item.ankama_id === ankama_id ? {...ci,qty} : ci)); };
+
+  const clearList = () => { setCraftItems([]); setActiveList(null); setListName("Ma liste de craft"); setUpdateId(null); };
+
+  // Aggregate all ingredients across the list
+  const totalIngredients = () => {
+    const map = {};
+    for (const {item, qty} of craftItems) {
+      for (const r of (item.recipe || [])) {
+        const key = r.ankama_id ?? r.name;
+        if (!map[key]) map[key] = {name:r.name, image_url:r.image_url, qty:0};
+        map[key].qty += r.quantity * qty;
+      }
+    }
+    return Object.values(map).sort((a,b) => a.name.localeCompare(b.name));
+  };
+
+  const saveList = async () => {
+    if (!listName.trim()) return showCraftToast("Donne un nom à ta liste !", "error");
+    if (craftItems.length === 0) return showCraftToast("Ajoute des items d'abord !", "error");
+    setSaving(true);
+    if (updateId) {
+      // Update existing
+      const {error} = await supabase.from("craft_lists").update({name:listName.trim(), items:craftItems, updated_at:new Date().toISOString()}).eq("id",updateId);
+      setSaving(false);
+      if (error) return showCraftToast("Erreur : "+error.message,"error");
+      showCraftToast("Liste mise à jour ✓");
+    } else {
+      const {error} = await supabase.from("craft_lists").insert([{user_id:session.user.id, name:listName.trim(), items:craftItems}]);
+      setSaving(false);
+      if (error) return showCraftToast("Erreur : "+error.message,"error");
+      showCraftToast("Liste sauvegardée ✓");
+    }
+    loadSavedLists();
+  };
+
+  const deleteList = async (id) => {
+    await supabase.from("craft_lists").delete().eq("id",id);
+    showCraftToast("Liste supprimée");
+    if (activeList?.id === id) clearList();
+    setDeleteId(null);
+    loadSavedLists();
+  };
+
+  const loadList = (list) => {
+    setActiveList(list);
+    setCraftItems(list.items || []);
+    setListName(list.name);
+    setUpdateId(list.id);
+    showCraftToast(`"${list.name}" chargée ✓`);
+  };
+
+  const ingredients = totalIngredients();
+  const typeColor = {equipment:T.accent, resources:"#34d399", consumables:"#818cf8"};
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:40,height:40,borderRadius:11,background:"linear-gradient(135deg,"+T.accent+"22,"+T.accent2+"22)",border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>⚗️</div>
+          <div>
+            <div style={{fontWeight:700,fontSize:17,color:T.text}}>Atelier de Craft</div>
+            <div style={{fontSize:11,color:T.muted}}>Planifie tes crafts • Ressources via DofusDU API</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {craftItems.length > 0 && (
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:8}}>
+              <span style={{fontSize:12,color:T.accent,fontWeight:700}}>{craftItems.length}</span>
+              <span style={{fontSize:11,color:T.muted}}>item{craftItems.length>1?"s":""}</span>
+            </div>
+          )}
+          {craftItems.length > 0 && (
+            <button onClick={clearList} style={{padding:"7px 14px",borderRadius:8,border:"1px solid "+T.border,background:T.surface,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:12}}>
+              🗑️ Vider
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"340px 1fr",gap:16,alignItems:"start"}}>
+
+        {/* ── LEFT: Search Panel ─────────────────────────────── */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {/* Type selector */}
+          <div style={{display:"flex",gap:5}}>
+            {CRAFT_SEARCH_TYPES.map(st => (
+              <button key={st.id} onClick={()=>{setSearchType(st.id);setResults([]);}}
+                style={{flex:1,padding:"7px 4px",borderRadius:8,border:"1px solid "+(searchType===st.id?typeColor[st.id]+"55":T.border),background:searchType===st.id?typeColor[st.id]+"12":T.surface,color:searchType===st.id?typeColor[st.id]:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,fontWeight:searchType===st.id?700:400,transition:"all 0.15s"}}>
+                <div style={{fontSize:15,marginBottom:1}}>{st.icon}</div>
+                <div>{st.label}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Search input */}
+          <div style={{position:"relative"}}>
+            <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13,pointerEvents:"none"}}>🔍</span>
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Chercher des ${CRAFT_SEARCH_TYPES.find(s=>s.id===searchType)?.label.toLowerCase()}...`}
+              style={{...fi, paddingLeft:34, paddingRight: searching?"32px":"14px"}} />
+            {searching && <span style={{position:"absolute",right:11,top:"50%",transform:"translateY(-50%)",fontSize:13}}>⏳</span>}
+          </div>
+
+          {/* Results list */}
+          <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,overflow:"hidden",maxHeight:520,overflowY:"auto"}}>
+            {results.length === 0 ? (
+              <div style={{textAlign:"center",padding:"36px 20px",color:T.muted}}>
+                <div style={{fontSize:28,marginBottom:8,opacity:0.5}}>
+                  {CRAFT_SEARCH_TYPES.find(s=>s.id===searchType)?.icon}
+                </div>
+                <div style={{fontSize:12}}>{query.length < 2 ? "Tape au moins 2 caractères" : "Aucun résultat trouvé"}</div>
+              </div>
+            ) : results.map(item => {
+              const isLoading = loadingId === item.ankama_id;
+              const alreadyIn = craftItems.some(ci => ci.item.ankama_id === item.ankama_id);
+              return (
+                <div key={item.ankama_id} onClick={()=>!isLoading&&addItem(item)}
+                  style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderBottom:"1px solid "+T.border+"88",cursor:isLoading?"wait":"pointer",transition:"background 0.1s",background:alreadyIn?T.accentBg:"transparent",position:"relative",overflow:"hidden"}}
+                  onMouseEnter={e=>{if(!alreadyIn)e.currentTarget.style.background=T.dimmer}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=alreadyIn?T.accentBg:"transparent"}}>
+                  {/* Item icon */}
+                  <div style={{width:38,height:38,borderRadius:8,background:T.dimmer,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+                    {item.image_urls?.icon
+                      ? <img src={item.image_urls.icon} alt={item.name} style={{width:32,height:32,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>{e.target.style.display="none";e.target.parentNode.innerHTML="⚗️"}} />
+                      : <span style={{fontSize:16}}>⚗️</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:12,color:alreadyIn?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:1}}>
+                      {item.level ? `Niv. ${item.level}` : ""}
+                      {item.type?.name ? ` • ${item.type.name}` : ""}
+                    </div>
+                  </div>
+                  <div style={{flexShrink:0,width:24,height:24,borderRadius:6,background:alreadyIn?T.accentBg:"rgba(245,158,11,0.08)",border:"1px solid "+(alreadyIn?T.accentBorder:"rgba(245,158,11,0.2)"),display:"flex",alignItems:"center",justifyContent:"center",fontSize:isLoading?11:16,color:T.accent,fontWeight:700}}>
+                    {isLoading?"⏳":alreadyIn?"✓":"+"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick tip */}
+          <div style={{background:T.dimmer,border:"1px solid "+T.border,borderRadius:9,padding:"9px 12px",fontSize:11,color:T.muted,lineHeight:1.5}}>
+            💡 Clique sur un item pour l'ajouter. Les ingrédients sont automatiquement récupérés via l'<span style={{color:T.accent,fontWeight:600}}>API DofusDU</span>.
+          </div>
+        </div>
+
+        {/* ── RIGHT: Craft List ──────────────────────────────── */}
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {/* List name + save */}
+          <div style={{display:"flex",gap:8}}>
+            <input value={listName} onChange={e=>setListName(e.target.value)} placeholder="Nom de la liste..."
+              style={{...fi, flex:1}} />
+            <button onClick={saveList} disabled={saving}
+              style={{padding:"10px 18px",borderRadius:9,border:"none",background:saving?T.dimmer:"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:saving?T.muted:T.bg,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:T.font,fontSize:12,whiteSpace:"nowrap",boxShadow:saving?"none":"0 4px 14px "+T.accent+"40",transition:"all 0.2s"}}>
+              {saving?"⏳ Sauvegarde…":updateId?"🔄 Mettre à jour":"💾 Sauvegarder"}
+            </button>
+          </div>
+
+          {/* Craft list items */}
+          <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,overflow:"hidden",minHeight:120}}>
+            {craftItems.length === 0 ? (
+              <div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}>
+                <div style={{fontSize:32,marginBottom:8,opacity:0.4}}>⚗️</div>
+                <div style={{fontSize:13,fontWeight:500,color:T.textSub,marginBottom:4}}>Ta liste est vide</div>
+                <div style={{fontSize:11}}>Recherche et clique sur des items pour les ajouter</div>
+              </div>
+            ) : craftItems.map(({item, qty}) => (
+              <div key={item.ankama_id} style={{borderBottom:"1px solid "+T.border+"66"}}>
+                {/* Item row */}
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px"}}>
+                  <div style={{width:40,height:40,borderRadius:9,background:T.dimmer,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+                    {item.image_url
+                      ? <img src={item.image_url} alt={item.name} style={{width:34,height:34,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>{e.target.style.display="none"}} />
+                      : <span style={{fontSize:18}}>⚗️</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                    <div style={{display:"flex",gap:5,marginTop:3,flexWrap:"wrap"}}>
+                      {item.level && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:T.dimmer,color:T.muted,border:"1px solid "+T.border}}>Niv. {item.level}</span>}
+                      <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:typeColor[item.subtype]+"12",color:typeColor[item.subtype],border:"1px solid "+typeColor[item.subtype]+"30"}}>{CRAFT_SEARCH_TYPES.find(s=>s.id===item.subtype)?.label||item.subtype}</span>
+                      {item.recipe?.length > 0 && <span style={{fontSize:9,padding:"1px 6px",borderRadius:5,background:"rgba(52,211,153,0.1)",color:T.success,border:"1px solid rgba(52,211,153,0.2)"}}>✓ Recette ({item.recipe.length} ing.)</span>}
+                    </div>
+                  </div>
+                  {/* Quantity controls */}
+                  <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                    <button onClick={()=>updateQty(item.ankama_id,qty-1)}
+                      style={{width:26,height:26,borderRadius:7,border:"1px solid "+T.border,background:T.dimmer,color:qty===1?T.danger:T.text,cursor:"pointer",fontFamily:T.font,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>−</button>
+                    <div style={{minWidth:32,height:26,borderRadius:7,background:T.accentBg,border:"1px solid "+T.accentBorder,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:T.accent,fontSize:14,padding:"0 6px"}}>{qty}</div>
+                    <button onClick={()=>updateQty(item.ankama_id,qty+1)}
+                      style={{width:26,height:26,borderRadius:7,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:T.font,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>+</button>
+                    <button onClick={()=>removeItem(item.ankama_id)}
+                      style={{width:26,height:26,borderRadius:7,border:"1px solid rgba(248,113,113,0.2)",background:"rgba(248,113,113,0.07)",color:T.danger,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:2}}>✕</button>
+                  </div>
+                </div>
+                {/* Recipe ingredients */}
+                {item.recipe?.length > 0 && (
+                  <div style={{padding:"0 14px 10px",paddingLeft:64,display:"flex",flexWrap:"wrap",gap:5}}>
+                    {item.recipe.map((r, i) => (
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:T.dimmer,borderRadius:7,padding:"4px 8px",border:"1px solid "+T.border}}>
+                        {r.image_url
+                          ? <img src={r.image_url} alt={r.name} style={{width:18,height:18,objectFit:"contain",imageRendering:"pixelated",flexShrink:0}} onError={e=>e.target.style.display="none"} />
+                          : <span style={{fontSize:12}}>🌿</span>}
+                        <span style={{fontSize:11,color:T.textSub}}>{r.name}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:T.accent,background:T.accentBg,borderRadius:4,padding:"0 5px"}}>×{r.quantity*qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {item.recipe?.length === 0 && (
+                  <div style={{padding:"0 14px 8px 64px",fontSize:10,color:T.muted,fontStyle:"italic"}}>Aucune recette disponible pour cet item</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* ── Total ingredients summary ─────────────────────── */}
+          {ingredients.length > 0 && (
+            <div style={{background:T.surface,border:"1px solid "+T.accentBorder,borderRadius:12,padding:16,boxShadow:"0 0 0 1px "+T.accentBorder+"44"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontSize:11,color:T.accent,letterSpacing:2,textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                  <span>🧮</span> Total ressources nécessaires
+                </div>
+                <span style={{fontSize:10,color:T.muted,background:T.dimmer,borderRadius:5,padding:"2px 8px",border:"1px solid "+T.border}}>
+                  {ingredients.length} type{ingredients.length>1?"s":""}
+                </span>
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {ingredients.map((ing,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:T.dimmer,borderRadius:9,padding:"5px 10px",border:"1px solid "+T.border}}>
+                    {ing.image_url
+                      ? <img src={ing.image_url} alt={ing.name} style={{width:20,height:20,objectFit:"contain",imageRendering:"pixelated",flexShrink:0}} onError={e=>e.target.style.display="none"} />
+                      : <span style={{fontSize:13}}>🌿</span>}
+                    <span style={{fontSize:12,color:T.text,fontWeight:500}}>{ing.name}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"1px 8px",marginLeft:2}}>×{ing.qty}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Saved Lists ─────────────────────────────────────────── */}
+      <div style={{marginTop:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontWeight:700,fontSize:14,color:T.text}}>📚 Listes sauvegardées</span>
+            <span style={{fontSize:10,color:T.muted,background:T.dimmer,borderRadius:20,padding:"1px 8px",border:"1px solid "+T.border}}>{savedLists.length}</span>
+          </div>
+          <button onClick={()=>setShowSaved(s=>!s)} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,padding:"4px 8px"}}>
+            {showSaved?"Masquer ▲":"Afficher ▼"}
+          </button>
+        </div>
+
+        {showSaved && (
+          savedLists.length === 0 ? (
+            <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:12,padding:"30px 20px",textAlign:"center"}}>
+              <div style={{fontSize:28,marginBottom:6,opacity:0.4}}>📭</div>
+              <div style={{color:T.muted,fontSize:13}}>Aucune liste sauvegardée — crée ta première liste !</div>
+            </div>
+          ) : (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
+              {savedLists.map(list => {
+                const isActive = activeList?.id === list.id;
+                const items = list.items || [];
+                // Compute quick stats
+                const totalItems = items.length;
+                const totalQty = items.reduce((s,ci)=>s+(ci.qty||1),0);
+                return (
+                  <div key={list.id} style={{background:isActive?T.accentBg:T.surface,border:"1px solid "+(isActive?T.accentBorder:T.border),borderRadius:12,padding:"14px 16px",position:"relative",overflow:"hidden",transition:"all 0.2s"}}>
+                    {isActive && <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,"+T.accent+","+T.accent2+")"}} />}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                      {/* Icon preview */}
+                      <div style={{width:44,height:44,borderRadius:9,background:T.dimmer,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                        {items[0]?.item?.image_url
+                          ? <img src={items[0].item.image_url} alt="" style={{width:36,height:36,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} />
+                          : <span style={{fontSize:20}}>⚗️</span>}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:13,color:isActive?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{list.name}</div>
+                        <div style={{display:"flex",gap:5,marginTop:4}}>
+                          <span style={{fontSize:9,padding:"1px 6px",borderRadius:4,background:T.dimmer,color:T.muted,border:"1px solid "+T.border}}>{totalItems} item{totalItems>1?"s":""}</span>
+                          <span style={{fontSize:9,padding:"1px 6px",borderRadius:4,background:T.accentBg,color:T.accent,border:"1px solid "+T.accentBorder}}>Qté: {totalQty}</span>
+                        </div>
+                        <div style={{fontSize:9,color:T.muted,marginTop:3}}>
+                          {new Date(list.created_at).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div style={{display:"flex",gap:6,marginTop:10}}>
+                      <button onClick={()=>loadList(list)}
+                        style={{flex:1,padding:"6px",borderRadius:7,border:"1px solid "+(isActive?T.accentBorder:T.border),background:isActive?T.accentBg:T.dimmer,color:isActive?T.accent:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:11,fontWeight:isActive?700:400}}>
+                        {isActive?"✓ Chargée":"📂 Charger"}
+                      </button>
+                      <button onClick={()=>setDeleteId(list.id)}
+                        style={{padding:"6px 10px",borderRadius:7,border:"1px solid rgba(248,113,113,0.2)",background:"rgba(248,113,113,0.07)",color:T.danger,cursor:"pointer",fontFamily:T.font,fontSize:11}}>
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Delete confirm modal */}
+      {deleteId && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,backdropFilter:"blur(10px)"}}>
+          <div style={{background:T.surface,border:"1px solid rgba(248,113,113,0.25)",borderRadius:18,padding:"28px",maxWidth:320,textAlign:"center",margin:16}}>
+            <div style={{width:50,height:50,borderRadius:14,background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 12px"}}>🗑️</div>
+            <h3 style={{color:T.danger,margin:"0 0 6px",fontFamily:T.font}}>Supprimer cette liste ?</h3>
+            <p style={{color:T.muted,margin:"0 0 20px",fontSize:12}}>Action irréversible.</p>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setDeleteId(null)} style={{flex:1,padding:"9px",borderRadius:9,border:"1px solid "+T.border,background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font}}>Annuler</button>
+              <button onClick={()=>deleteList(deleteId)} style={{flex:1,padding:"9px",borderRadius:9,border:"none",background:"linear-gradient(135deg,#ef4444,#dc2626)",color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:T.font}}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {craftToast && (
+        <div style={{position:"fixed",bottom:24,right:24,background:craftToast.type==="error"?"linear-gradient(135deg,#ef4444,#dc2626)":"linear-gradient(135deg,"+T.accent+","+T.accent2+")",color:T.bg,padding:"11px 18px",borderRadius:11,fontWeight:700,fontSize:13,boxShadow:"0 10px 36px rgba(0,0,0,0.5)",zIndex:300,fontFamily:T.font,display:"flex",alignItems:"center",gap:7,maxWidth:300}}>
+          {craftToast.type==="error"?"❌":"✅"} {craftToast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────
 export default function App() {
   const [gateOpen,setGateOpen]           = useState(false);
@@ -618,7 +989,6 @@ export default function App() {
     if(data) setShareCount(data.length);
   };
 
-  // ── Récupère la config webhook de l'utilisateur ────────────
   const getWebhookConfig = () => {
     if (!session) return null;
     const raw = localStorage.getItem("webhook_config_"+session.user.id);
@@ -644,10 +1014,7 @@ export default function App() {
       const oldChar = characters.find(c=>c.id===editingChar);
       const {error} = await supabase.from("characters").update(form).eq("id",editingChar);
       if(error) return showToast("Erreur lors de la modification","error");
-      // Level up webhook
-      if(oldChar && form.level > oldChar.level) {
-        fireWebhook("levelup", {...oldChar,...form}, {oldLevel:oldChar.level, newLevel:form.level});
-      }
+      if(oldChar && form.level > oldChar.level) { fireWebhook("levelup", {...oldChar,...form}, {oldLevel:oldChar.level, newLevel:form.level}); }
       showToast("Personnage modifié ✓");
     } else {
       const {error} = await supabase.from("characters").insert([{...form,user_id:session.user.id}]);
@@ -673,7 +1040,6 @@ export default function App() {
     setCharacters(characters.map(c=>c.id===id?{...c,etat}:c));
     const newCat = getCatForEtat(etat);
     setActiveTab(newCat);
-    // Webhook : mort ou changement d'état
     if(etat==="Mort") fireWebhook("mort",{...char,etat},{});
     else fireWebhook("etat",{...char,etat},{oldEtat,newEtat:etat});
     showToast("Déplacé → \""+CATEGORIES.find(c=>c.id===newCat)?.label+"\" ✓");
@@ -726,6 +1092,7 @@ export default function App() {
 
   const MAIN_TABS = [
     {id:"persos",   icon:"⚔️", label:"Personnages"},
+    {id:"craft",    icon:"⚗️", label:"Atelier de Craft"},
     {id:"partages", icon:"🔗", label:"Partages", badge:shareCount},
     {id:"webhooks", icon:"🔔", label:"Webhooks"},
   ];
@@ -778,6 +1145,7 @@ export default function App() {
 
       {mainTab==="partages" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><PartagesTab session={session} characters={characters} showToast={showToast} /></div>}
       {mainTab==="webhooks" && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><WebhooksTab session={session} /></div>}
+      {mainTab==="craft"    && <div style={{maxWidth:1400,margin:"0 auto",padding:"22px 26px"}}><CraftTab session={session} /></div>}
 
       {/* PERSOS */}
       <div style={{maxWidth:1400,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"20px 26px"}}>
