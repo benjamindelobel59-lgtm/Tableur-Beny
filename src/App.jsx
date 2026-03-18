@@ -265,7 +265,7 @@ function PartagesTab({ session, characters, showToast }) {
 }
 
 // ─── CRAFT TAB ────────────────────────────────────────────────
-function CraftTab({ session }) {
+function CraftTab({ session, externalItems, onExternalConsumed }) {
   const T=useT();const fi=makeFi(T);
   const [query,setQuery]=useState("");const [searchType,setSearchType]=useState("equipment");const [results,setResults]=useState([]);const [searching,setSearching]=useState(false);const [craftView,setCraftView]=useState("par_craft");
   const lsKey=`craft_session_v2_${session.user.id}`;const lsBanqKey=`craft_banque_${session.user.id}`;const lsNameKey=`craft_name_${session.user.id}`;
@@ -286,6 +286,27 @@ function CraftTab({ session }) {
   useEffect(()=>{try{localStorage.setItem(lsNameKey,listName);}catch{}},[listName]);
   const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2800);};
   useEffect(()=>{localStorage.removeItem(`craft_session_${session.user.id}`);loadSavedLists();},[]);
+  // ── Receive items from BuildTab ──
+  useEffect(()=>{
+    if(!externalItems||!externalItems.length)return;
+    (async()=>{
+      let added=0;
+      for(const item of externalItems){
+        if(!item?.ankama_id)continue;
+        const ex=craftItems.find(ci=>ci.item.ankama_id===item.ankama_id);
+        if(ex){setCraftItems(prev=>prev.map(ci=>ci.item.ankama_id===item.ankama_id?{...ci,qty:ci.qty+1}:ci));added++;continue;}
+        try{
+          const{data:recipeRow}=await supabase.from("recipes").select("*").eq("Item_Id",item.ankama_id).maybeSingle();
+          let recipe=[];let jobLabel=null;
+          if(recipeRow?.Ingredients){jobLabel=recipeRow.Job??null;const ingParts=recipeRow.Ingredients.split(",").map(s=>{const[rawId,rawQty]=s.trim().split("x");return{ankama_id:parseInt(rawId,10),quantity:parseInt(rawQty,10)||1};}).filter(r=>!isNaN(r.ankama_id));const icons=await Promise.all(ingParts.map(r=>fetchIconById(r.ankama_id)));recipe=ingParts.map((r,i)=>({ankama_id:r.ankama_id,name:icons[i]?.name??`#${r.ankama_id}`,image_url:icons[i]?.icon??null,quantity:r.quantity}));}
+          const newItem={ankama_id:item.ankama_id,name:item.name,level:item.level??null,image_url:item.image_urls?.icon??item.image_url??null,job:jobLabel,recipe};
+          setCraftItems(prev=>[...prev,{item:newItem,qty:1}]);added++;
+        }catch{}
+      }
+      showToast(added+' item(s) importé(s) du build ✓');
+      if(onExternalConsumed)onExternalConsumed();
+    })();
+  },[externalItems]);
   const loadSavedLists=async()=>{const{data}=await supabase.from("craft_lists").select("*").eq("user_id",session.user.id).order("created_at",{ascending:false});if(data)setSavedLists(data);};
   useEffect(()=>{if(debounceRef.current)clearTimeout(debounceRef.current);if(!query.trim()||query.length<2){setResults([]);return;}debounceRef.current=setTimeout(()=>doSearch(query,searchType),350);return()=>clearTimeout(debounceRef.current);},[query,searchType]);
   const doSearch=async(q,type)=>{setSearching(true);try{const r=await fetch(`${DOFUSDU_BASE}/items/${type}/search?query=${encodeURIComponent(q)}&limit=20`);if(!r.ok)throw new Error();const d=await r.json();setResults(Array.isArray(d)?d:[]);}catch{setResults([]);}setSearching(false);};
@@ -592,11 +613,11 @@ const CARACS=['Vitalité','Sagesse','Force','Intelligence','Chance','Agilité'];
 const CARAC_ICONS={"Vitalité":"❤️","Sagesse":"🌟","Force":"💪","Intelligence":"🧠","Chance":"🍀","Agilité":"💨"};
 const costBySlice=(stat,invested)=>{if(stat==='Vitalité')return 1;if(stat==='Sagesse')return 3;if(invested<100)return 1;if(invested<200)return 2;if(invested<300)return 3;if(invested<400)return 4;return 5;};
 const pointsToStat=(stat,pts)=>{if(stat==='Vitalité')return pts;if(stat==='Sagesse')return Math.floor(pts/3);let v=0,rm=pts;for(const[cap,cost]of[[100,1],[100,2],[100,3],[100,4],[1e9,5]]){const take=cap<1e9?Math.min(rm,cap*cost):rm;const gained=Math.floor(take/cost);v+=gained;rm-=gained*cost;if(rm<=0)break;}return v;};
-const defaultBuild=()=>({name:'Mon Build',classe:'Iop',level:200,slots:{},ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0},parcho:{PA:0,PM:0,Portée:0}});
+const defaultBuild=()=>({name:'Mon Build',classe:'Iop',level:200,slots:{},ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0},setOff:{}});
 
-function BuildTab({session}){
+function BuildTab({session, onSendToAtelier}){
   const T=useT();const fi=makeFi(T);
-  const lsKey='bld_v2_'+session.user.id;
+  const lsKey='bld_v3_'+session.user.id;
   const [builds,setBuilds]=useState(()=>{try{const r=localStorage.getItem(lsKey);return r?JSON.parse(r):[]}catch{return [];}});
   const [activeBuildId,setActiveBuildId]=useState(null);
   const [build,setBuild]=useState(defaultBuild());
@@ -611,6 +632,7 @@ function BuildTab({session}){
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(builds));}catch{}},[builds]);
   const showToast=(msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),2500);};
 
+  // Search items
   useEffect(()=>{
     if(debRef.current)clearTimeout(debRef.current);
     if(!searchQ.trim()||searchQ.length<2){setSearchRes([]);return;}
@@ -625,46 +647,101 @@ function BuildTab({session}){
   const equipItem=async(item)=>{const full=await fetchFull(item.ankama_id)||item;setBuild(b=>({...b,slots:{...b.slots,[activeSlot]:full}}));setActiveSlot(null);setSearchQ('');setSearchRes([]);showToast(item.name+' équipé ✓');};
   const unequipSlot=(k)=>setBuild(b=>{const s={...b.slots};delete s[k];return{...b,slots:s};});
 
+  // Carac math
   const maxPts=(lv)=>(lv-1)*5;
   const usedPts=()=>Object.values(build.ch).reduce((a,b)=>a+b,0);
   const addCarac=(stat,delta)=>{setBuild(b=>{const cur=b.ch[stat]||0;let next=cur+delta;if(next<0)next=0;if(delta>0){const avail=maxPts(b.level)-Object.values(b.ch).reduce((a,v)=>a+v,0);if(delta>avail)next=cur+avail;}return{...b,ch:{...b.ch,[stat]:next}};});};
 
+  // ── Panoplies detection ──
+  const getSetCounts=()=>{
+    const counts={};
+    for(const item of Object.values(build.slots)){
+      if(!item)continue;
+      const sid=item.parent_set?.id;
+      if(sid!=null){counts[sid]=(counts[sid]||{count:0,set:item.parent_set});counts[sid].count++;}
+    }
+    return counts;
+  };
+  const toggleSet=(sid)=>setBuild(b=>({...b,setOff:{...b.setOff,[sid]:!b.setOff[sid]}}));
+
+  // ── Fetch set bonus details from dofusdu API ──
+  const [setDetails,setSetDetails]=useState({});
+  useEffect(()=>{
+    const counts=getSetCounts();
+    Object.keys(counts).forEach(async(sid)=>{
+      if(setDetails[sid])return;
+      try{
+        const r=await fetch(DOFUSDU_BASE+'/sets/'+sid);
+        if(r.ok){const d=await r.json();setSetDetails(p=>({...p,[sid]:d}));}
+      }catch{}
+    });
+  },[build.slots]);
+
+  // ── Full stat calc (items + caracs + set bonuses) ──
   const calcStats=()=>{
-    const base={},eq={},t={};
+    const base={},eq={},bo={},t={};
     base['Vitalité']=55+(build.level-1)*5;base['PA']=6+(build.level>=100?1:0);base['PM']=3;base['Prospection']=100;base['Pods']=1000;
+    // Caracs
     for(const[k,pts]of Object.entries(build.ch)){const v=pointsToStat(k,pts);if(v)eq[k]=(eq[k]||0)+v;}
-    for(const item of Object.values(build.slots)){if(!item)continue;for(const eff of(item.effects||[])){const nm=eff.type?.name||'';const v=eff.int_maximum??eff.int_minimum??0;if(nm)eq[nm]=(eq[nm]||0)+v;}}
-    const totalSag=(base['Sagesse']||0)+(eq['Sagesse']||0);const sagD=Math.floor(totalSag/10);
+    // Equipped items
+    for(const item of Object.values(build.slots)){
+      if(!item)continue;
+      for(const eff of(item.effects||[])){const nm=eff.type?.name||'';const v=eff.int_maximum??eff.int_minimum??0;if(nm)eq[nm]=(eq[nm]||0)+v;}
+    }
+    // Set bonuses
+    const counts=getSetCounts();
+    for(const[sid,{count,set}]of Object.entries(counts)){
+      if(build.setOff[sid])continue;
+      const detail=setDetails[sid];
+      if(!detail?.effects)continue;
+      // Phaeris-style: effects have min/max per number of items
+      // dofusdu returns effects array, find highest applicable bonus
+      const applicable=detail.effects.filter(e=>e.min_count<=count);
+      for(const eff of applicable){const nm=eff.type?.name||'';const v=eff.int_maximum??eff.int_minimum??0;if(nm)bo[nm]=(bo[nm]||0)+v;}
+    }
+    // Derivations
+    const totalSag=(base['Sagesse']||0)+(eq['Sagesse']||0)+(bo['Sagesse']||0);const sagD=Math.floor(totalSag/10);
     if(sagD){['Esquive PA','Esquive PM','Retrait PA','Retrait PM'].forEach(k=>eq[k]=(eq[k]||0)+sagD);}
-    const totalAgi=(base['Agilité']||0)+(eq['Agilité']||0);if(Math.floor(totalAgi/10)){const d=Math.floor(totalAgi/10);eq['Tacle']=(eq['Tacle']||0)+d;eq['Fuite']=(eq['Fuite']||0)+d;}
-    const totalCha=(base['Chance']||0)+(eq['Chance']||0);if(Math.floor(totalCha/10))eq['Prospection']=(eq['Prospection']||0)+Math.floor(totalCha/10);
-    for(const k of new Set([...Object.keys(base),...Object.keys(eq)])){t[k]=(base[k]||0)+(eq[k]||0);}
+    const totalAgi=(base['Agilité']||0)+(eq['Agilité']||0)+(bo['Agilité']||0);const agiD=Math.floor(totalAgi/10);
+    if(agiD){eq['Tacle']=(eq['Tacle']||0)+agiD;eq['Fuite']=(eq['Fuite']||0)+agiD;}
+    const totalCha=(base['Chance']||0)+(eq['Chance']||0)+(bo['Chance']||0);const chaD=Math.floor(totalCha/10);
+    if(chaD)eq['Prospection']=(eq['Prospection']||0)+chaD;
+    for(const k of new Set([...Object.keys(base),...Object.keys(eq),...Object.keys(bo)])){t[k]=(base[k]||0)+(eq[k]||0)+(bo[k]||0);}
     t['Initiative']=(t['Initiative']||0)+(t['Force']||0)+(t['Intelligence']||0)+(t['Chance']||0)+(t['Agilité']||0);
     if(t['PA']>12)t['PA']=12;if(t['PM']>6)t['PM']=6;if(t['Portée']>6)t['Portée']=6;
-    return t;
+    return{base,eq,bo,t};
   };
-  const stats=calcStats();
+  const {base,eq,bo,t:stats}=calcStats();
 
+  // Build save/load
   const saveBuild=()=>{const b={...build,name:buildName,id:activeBuildId||Date.now().toString()};if(activeBuildId){setBuilds(p=>p.map(x=>x.id===activeBuildId?b:x));}else{setBuilds(p=>[b,...p]);setActiveBuildId(b.id);}showToast('Build sauvegardé ✓');};
   const loadBuild=(b)=>{setBuild(b);setBuildName(b.name);setActiveBuildId(b.id);};
   const newBuild=()=>{setBuild(defaultBuild());setBuildName('Mon Build');setActiveBuildId(null);};
   const deleteBuild=(id)=>{setBuilds(p=>p.filter(b=>b.id!==id));if(activeBuildId===id)newBuild();showToast('Build supprimé');};
 
+  // ── Send equipped items to craft atelier ──
+  const sendToAtelier=()=>{
+    const items=Object.values(build.slots).filter(Boolean);
+    if(!items.length){showToast('Aucun item équipé !','err');return;}
+    onSendToAtelier(items);
+    showToast(items.length+' item(s) envoyé(s) à l\'atelier ✓');
+  };
+
+  // Tooltip
   const onSlotEnter=(e,item)=>{if(!item)return;const rect=e.currentTarget.getBoundingClientRect();const flip=rect.right+270>window.innerWidth;setTip({vis:true,item,x:flip?rect.left-270:rect.right+8,y:Math.min(rect.top,window.innerHeight-440)});};
   const onSlotLeave=()=>setTip(t=>({...t,vis:false}));
-
   const fmtEff=(eff)=>{const min=eff.int_minimum??0;const max=eff.int_maximum??min;const nm=eff.type?.name||'';if(min===max)return(min>=0?'+':'')+min+' '+nm;return min+' à '+(max>=0?'+':'')+max+' '+nm;};
-  const effColor=(eff)=>{const v=eff.int_minimum??0;const nm=(eff.type?.name||'');const col=SCOL[nm];if(col)return v<0&&!nm.includes('Résistance')?'#ef4444':col;return v<0?'#ef4444':'#d0ccc4';};
+  const effColor=(eff)=>{const v=eff.int_minimum??0;const nm=eff.type?.name||'';const col=SCOL[nm];if(col)return v<0&&!nm.includes('Résistance')?'#ef4444':col;return v<0?'#ef4444':'#d0ccc4';};
 
-  const used=usedPts();const maxP=maxPts(build.level);const rem=maxP-used;
-  const pct=Math.min(100,maxP>0?used/maxP*100:0);
+  const used=usedPts();const maxP=maxPts(build.level);const rem=maxP-used;const pct=Math.min(100,maxP>0?used/maxP*100:0);
+  const setCounts=getSetCounts();
+  const hasEquipped=Object.values(build.slots).some(Boolean);
 
   const statRows=[
     {nm:'Vitalité',ic:'❤️',bv:55+(build.level-1)*5,hasCh:true},
     {nm:'PA',ic:'⚡',bv:6+(build.level>=100?1:0),hasCh:false},
     {nm:'PM',ic:'🦵',bv:3,hasCh:false},
-    {nm:'Portée',ic:'🎯',bv:0,hasCh:false},
-    null,
+    {nm:'Portée',ic:'🎯',bv:0,hasCh:false},null,
     {nm:'Force',ic:'💪',bv:0,hasCh:true},
     {nm:'Intelligence',ic:'🧠',bv:0,hasCh:true},
     {nm:'Chance',ic:'🍀',bv:0,hasCh:true},
@@ -675,19 +752,16 @@ function BuildTab({session}){
     {nm:'Pods',ic:'🎒',bv:1000},null,
     {nm:'Tacle',ic:'⚔️',bv:0},{nm:'Fuite',ic:'🏃',bv:0},
     {nm:'Esquive PA',ic:'🛡️',bv:0},{nm:'Esquive PM',ic:'🛡️',bv:0},
-    {nm:'Retrait PA',ic:'↩️',bv:0},{nm:'Retrait PM',ic:'↩️',bv:0},
-    null,
-    {nm:'Initiative',ic:'🏆',bv:0},{nm:'Prospection',ic:'🔍',bv:100},{nm:'% Critique',ic:'💥',bv:0},{nm:'Soins',ic:'💚',bv:0},
-    null,
+    {nm:'Retrait PA',ic:'↩️',bv:0},{nm:'Retrait PM',ic:'↩️',bv:0},null,
+    {nm:'Initiative',ic:'🏆',bv:0},{nm:'Prospection',ic:'🔍',bv:100},{nm:'% Critique',ic:'💥',bv:0},{nm:'Soins',ic:'💚',bv:0},null,
     {nm:'Dommages Terre',ic:'🟤',bv:0},{nm:'Dommages Feu',ic:'🔴',bv:0},
-    {nm:'Dommages Eau',ic:'🔵',bv:0},{nm:'Dommages Air',ic:'🟢',bv:0},{nm:'Dommages Neutre',ic:'⚪',bv:0},
-    null,
+    {nm:'Dommages Eau',ic:'🔵',bv:0},{nm:'Dommages Air',ic:'🟢',bv:0},{nm:'Dommages Neutre',ic:'⚪',bv:0},null,
     {nm:'Résistance Terre',ic:'🟤',bv:0},{nm:'Résistance Feu',ic:'🔴',bv:0},
     {nm:'Résistance Eau',ic:'🔵',bv:0},{nm:'Résistance Air',ic:'🟢',bv:0},{nm:'Résistance Neutre',ic:'⚪',bv:0},
   ];
 
   const cardS={background:T.surface,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden'};
-  const tdBase={padding:'2px 4px',fontSize:11,fontWeight:600,textAlign:'right',background:T.surface,borderBottom:'1px solid '+T.border2,whiteSpace:'nowrap'};
+  const tdB={padding:'2px 4px',fontSize:11,fontWeight:600,textAlign:'right',background:T.surface,borderBottom:'1px solid '+T.border2,whiteSpace:'nowrap'};
 
   return(
     <div style={{display:'flex',gap:12,height:'calc(100vh - 112px)',fontFamily:T.font,overflow:'hidden',fontSize:13}}>
@@ -719,7 +793,10 @@ function BuildTab({session}){
         .bstbl td:last-child{border-radius:0 4px 4px 0}
         .bstbl tr:hover td{background:${T.surface2}!important}
         .bstbl .sp td{height:6px;border:none!important;background:none!important}
-        .bstbl .vt{color:#fff;font-weight:800;font-size:13px}
+        .sbox-sw{width:34px;height:19px;background:${T.border};border:1px solid ${T.border2};border-radius:10px;cursor:pointer;position:relative;transition:all .15s;flex-shrink:0}
+        .sbox-sw.on{background:${T.accentBg};border-color:${T.accent}}
+        .sbox-sw::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;background:${T.muted};border-radius:50%;transition:all .15s}
+        .sbox-sw.on::after{left:17px;background:${T.accent}}
       `}</style>
 
       {/* ── COL 1 : BUILDS ── */}
@@ -737,13 +814,14 @@ function BuildTab({session}){
                 <div style={{fontSize:11,fontWeight:600,color:activeBuildId===b.id?T.accent:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.name}</div>
                 <div style={{fontSize:9,color:T.muted}}>Niv.{b.level} {b.classe}</div>
               </div>
-              <button onClick={e=>{e.stopPropagation();deleteBuild(b.id);}} style={{background:'transparent',border:'none',color:T.muted,cursor:'pointer',fontSize:11,opacity:.5,flexShrink:0}}>✕</button>
+              <button onClick={e=>{e.stopPropagation();deleteBuild(b.id);}} style={{background:'transparent',border:'none',color:T.muted,cursor:'pointer',fontSize:11,opacity:.5}}>✕</button>
             </div>
           ))}
         </div>
-        <div style={{padding:'8px 7px',borderTop:'1px solid '+T.border}}>
-          <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:'5px 9px',fontSize:11,marginBottom:5}} placeholder="Nom du build…"/>
+        <div style={{padding:'8px 7px',borderTop:'1px solid '+T.border,display:'flex',flexDirection:'column',gap:5}}>
+          <input value={buildName} onChange={e=>setBuildName(e.target.value)} style={{...fi,padding:'5px 9px',fontSize:11}} placeholder="Nom du build…"/>
           <button onClick={saveBuild} style={{width:'100%',padding:'6px',borderRadius:7,border:'none',background:T.accent,color:'#fff',fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>💾 Sauvegarder</button>
+          {hasEquipped&&<button onClick={sendToAtelier} style={{width:'100%',padding:'6px',borderRadius:7,border:'1px solid '+T.accentBorder,background:T.accentBg,color:T.accent,fontWeight:700,cursor:'pointer',fontFamily:T.font,fontSize:11}}>📦 → Atelier de Craft</button>}
         </div>
       </div>
 
@@ -786,9 +864,7 @@ function BuildTab({session}){
                   onMouseEnter={e=>onSlotEnter(e,item)}
                   onMouseLeave={onSlotLeave}
                   title="Clic : sélectionner | Clic droit : retirer">
-                  {item
-                    ?<img className="iimg" src={item.image_urls?.icon||s.ph} alt="" onError={e=>e.target.src=s.ph}/>
-                    :<img className="ph" src={s.ph} alt={s.l}/>}
+                  {item?<img className="iimg" src={item.image_urls?.icon||s.ph} alt="" onError={e=>e.target.src=s.ph}/>:<img className="ph" src={s.ph} alt={s.l}/>}
                   <span className="slot-lbl">{item?item.name.slice(0,7)+(item.name.length>7?'…':''):s.l}</span>
                   {item&&<span className="slot-rm" onClick={e=>{e.stopPropagation();unequipSlot(s.k);}}>✕</span>}
                 </div>
@@ -797,7 +873,7 @@ function BuildTab({session}){
           </div>
         </div>
 
-        {/* Search panel */}
+        {/* Search */}
         {activeSlot&&(
           <div style={{...cardS,padding:'12px'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
@@ -805,12 +881,12 @@ function BuildTab({session}){
               <button onClick={()=>{setActiveSlot(null);setSearchQ('');setSearchRes([]);}} style={{background:'transparent',border:'none',color:T.muted,cursor:'pointer',fontSize:14}}>✕</button>
             </div>
             <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Chercher un item…" style={{...fi,fontSize:12,marginBottom:5}}/>
-            {searching&&<div style={{textAlign:'center',padding:'8px',color:T.muted,fontSize:12}}>⏳</div>}
+            {searching&&<div style={{textAlign:'center',padding:'8px',color:T.muted}}>⏳</div>}
             <div style={{maxHeight:210,overflowY:'auto',display:'flex',flexDirection:'column',gap:2}}>
               {searchRes.map(item=>(
                 <div key={item.ankama_id} className="icard2" onClick={()=>equipItem(item)}>
                   <div style={{width:30,height:30,borderRadius:5,background:T.surface,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
-                    {item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:24,height:24,objectFit:'contain',imageRendering:'pixelated'}} alt="" onError={e=>e.target.style.display='none'}/>:<span style={{fontSize:12}}>⚔️</span>}
+                    {item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:24,height:24,objectFit:'contain',imageRendering:'pixelated'}} alt="" onError={e=>e.target.style.display='none'}/>:<span>⚔️</span>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:11,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
@@ -819,7 +895,45 @@ function BuildTab({session}){
                   <span style={{fontSize:12,color:T.accent}}>+</span>
                 </div>
               ))}
-              {!searching&&searchQ.length>=2&&searchRes.length===0&&<div style={{textAlign:'center',padding:'12px',color:T.muted,fontSize:11}}>Aucun résultat</div>}
+              {!searching&&searchQ.length>=2&&searchRes.length===0&&<div style={{textAlign:'center',padding:'10px',color:T.muted,fontSize:11}}>Aucun résultat</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ── PANOPLIES ── */}
+        {Object.keys(setCounts).length>0&&(
+          <div style={{...cardS,padding:'12px'}}>
+            <div style={{fontSize:9,color:T.accent,letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:8}}>🎭 Panoplies</div>
+            <div style={{display:'flex',flexDirection:'column',gap:7}}>
+              {Object.entries(setCounts).map(([sid,{count,set}])=>{
+                const detail=setDetails[sid];
+                const isOff=build.setOff[sid];
+                const setName=set?.name||detail?.name||('Set #'+sid);
+                // Build bonus lines from detail
+                const bonusLines=detail?.effects
+                  ?[...new Set(detail.effects.map(e=>e.min_count))].sort((a,b)=>a-b).map(p=>{
+                    const effs=detail.effects.filter(e=>e.min_count===p);
+                    const active=!isOff&&count>=p;
+                    const summary=effs.map(e=>{const v=e.int_maximum??e.int_minimum??0;return(v>0?'+':'')+v+' '+(e.type?.name||'');}).join(', ');
+                    return{p,summary,active};
+                  })
+                  :[];
+                return(
+                  <div key={sid} style={{background:isOff?T.surface2:T.accentBg,border:'1px solid '+(isOff?T.border2:T.accentBorder),borderRadius:8,padding:'8px 10px',opacity:isOff?.4:1,transition:'all .2s'}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:bonusLines.length?6:0}}>
+                      <span style={{fontSize:11,fontWeight:700,color:isOff?T.muted:T.accent}}>{setName} ({count}p)</span>
+                      <div className={'sbox-sw'+(isOff?'':' on')} onClick={()=>toggleSet(sid)}/>
+                    </div>
+                    {bonusLines.map(({p,summary,active})=>(
+                      <div key={p} style={{fontSize:10,color:active?T.success:T.muted,lineHeight:1.6,display:'flex',alignItems:'flex-start',gap:4}}>
+                        <span>{active?'✅':'⬜'}</span>
+                        <span><strong>{p}p :</strong> {summary}</span>
+                      </div>
+                    ))}
+                    {!detail&&<div style={{fontSize:9,color:T.muted,fontStyle:'italic'}}>Chargement des bonus…</div>}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -832,10 +946,10 @@ function BuildTab({session}){
           <div style={{display:'flex',alignItems:'center',gap:'1rem',padding:'6px 10px',background:T.panel,border:'1px solid '+T.border,borderRadius:8,marginBottom:10,flexWrap:'nowrap'}}>
             <span style={{fontSize:11,fontWeight:700,color:T.textSub,whiteSpace:'nowrap'}}>Points</span>
             <div style={{flex:1,height:5,background:T.border2,borderRadius:3,overflow:'hidden',minWidth:50}}>
-              <div style={{height:'100%',width:pct+'%',background:rem<0?T.danger:T.accent,borderRadius:3,transition:'width .3s,background .3s'}}/>
+              <div style={{height:'100%',width:pct+'%',background:rem<0?T.danger:T.accent,borderRadius:3,transition:'width .3s'}}/>
             </div>
             <span style={{fontSize:14,fontWeight:800,color:rem<0?T.danger:T.accent,whiteSpace:'nowrap'}}>{used} / {maxP}</span>
-            <button onClick={()=>setBuild(b=>({...b,ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0}}))} style={{fontSize:10,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(239,68,68,.25)',background:'rgba(239,68,68,.07)',color:T.danger,cursor:'pointer',fontFamily:T.font,whiteSpace:'nowrap'}}>↺ Reset</button>
+            <button onClick={()=>setBuild(b=>({...b,ch:{Vitalité:0,Sagesse:0,Force:0,Intelligence:0,Chance:0,Agilité:0}}))} style={{fontSize:10,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(239,68,68,.25)',background:'rgba(239,68,68,.07)',color:T.danger,cursor:'pointer',fontFamily:T.font}}>↺ Reset</button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
             {CARACS.map(stat=>{
@@ -854,55 +968,53 @@ function BuildTab({session}){
           </div>
         </div>
 
-        {/* Stats table — 2 col like Phaeris */}
+        {/* Stat tables */}
         <div style={{...cardS,padding:'12px'}}>
           <div style={{fontSize:9,color:T.accent,letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:8}}>📊 Caractéristiques détaillées</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1px 1fr',gap:0,alignItems:'start'}}>
-            {/* Left */}
             <table className="bstbl">
               <thead><tr>
-                <th>Stat</th><th>Base</th><th>Carac</th><th>Équip</th><th>Total</th>
+                <th>Stat</th><th>Base</th><th>Carac</th><th>Équip</th><th style={{color:T.success}}>Pano</th><th>Total</th>
               </tr></thead>
               <tbody>
                 {statRows.map((row,i)=>{
-                  if(!row)return <tr key={i} className="sp"><td colSpan={5}></td></tr>;
+                  if(!row)return <tr key={i} className="sp"><td colSpan={6}></td></tr>;
                   const {nm,ic,bv,hasCh}=row;
                   const cv=hasCh?Math.round(pointsToStat(nm,build.ch[nm]||0)):0;
-                  const tot=stats[nm]||0;const ev=tot-bv-cv;
+                  const bov=bo[nm]||0;
+                  const ev=(eq[nm]||0)-cv;
+                  const tot=stats[nm]||0;
                   const col=SCOL[nm]||T.text;
                   return(<tr key={nm}>
-                    <td style={{...tdBase,textAlign:'left',color:T.textSub,fontSize:10}}>
-                      <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span>
-                    </td>
-                    <td style={{...tdBase,color:T.muted}}>{bv||''}</td>
-                    <td style={{...tdBase,color:cv>0?col:T.muted}}>{cv>0?'+'+cv:''}</td>
-                    <td style={{...tdBase,color:ev>0?col:ev<0?T.danger:T.muted}}>{ev!==0?(ev>0?'+':'')+ev:''}</td>
-                    <td style={{...tdBase,color:col,fontWeight:800,fontSize:13}}>{tot}</td>
+                    <td style={{...tdB,textAlign:'left',color:T.textSub,fontSize:10}}><span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span></td>
+                    <td style={{...tdB,color:T.muted}}>{bv||''}</td>
+                    <td style={{...tdB,color:cv>0?col:T.muted}}>{cv>0?'+'+cv:''}</td>
+                    <td style={{...tdB,color:ev>0?col:ev<0?T.danger:T.muted}}>{ev!==0?(ev>0?'+':'')+ev:''}</td>
+                    <td style={{...tdB,color:bov>0?T.success:T.muted}}>{bov>0?'+'+bov:''}</td>
+                    <td style={{...tdB,color:col,fontWeight:800,fontSize:13}}>{tot}</td>
                   </tr>);
                 })}
               </tbody>
             </table>
-            {/* Sep */}
             <div style={{background:T.border,minHeight:'100%',margin:'0 8px',alignSelf:'stretch'}}/>
-            {/* Right */}
             <table className="bstbl">
               <thead><tr>
-                <th>Stat</th><th>Base</th><th>Équip</th><th>Total</th>
+                <th>Stat</th><th>Base</th><th>Équip</th><th style={{color:T.success}}>Pano</th><th>Total</th>
               </tr></thead>
               <tbody>
                 {statRows2.map((row,i)=>{
-                  if(!row)return <tr key={i} className="sp"><td colSpan={4}></td></tr>;
+                  if(!row)return <tr key={'sp'+i} className="sp"><td colSpan={5}></td></tr>;
                   const {nm,ic,bv}=row;
-                  const tot=stats[nm]||0;const ev=tot-bv;
+                  const tot=stats[nm]||0;const ev=(eq[nm]||0)-(bv===0?0:0);const bov=bo[nm]||0;const equipV=tot-bv-bov;
                   const isRes=nm.includes('Résistance');
                   const col=isRes?(tot>0?'#4ade80':tot<0?'#ef4444':T.muted):SCOL[nm]||T.text;
+                  if(!bv&&!equipV&&!bov&&!tot)return null;
                   return(<tr key={nm}>
-                    <td style={{...tdBase,textAlign:'left',color:T.textSub,fontSize:10}}>
-                      <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span>
-                    </td>
-                    <td style={{...tdBase,color:T.muted}}>{bv||''}</td>
-                    <td style={{...tdBase,color:ev>0?col:ev<0?'#ef4444':T.muted}}>{ev!==0?(ev>0?'+':'')+ev:''}</td>
-                    <td style={{...tdBase,color:col,fontWeight:800,fontSize:13}}>{tot||''}</td>
+                    <td style={{...tdB,textAlign:'left',color:T.textSub,fontSize:10}}><span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:16,textAlign:'center'}}>{ic}</span>{nm}</span></td>
+                    <td style={{...tdB,color:T.muted}}>{bv||''}</td>
+                    <td style={{...tdB,color:equipV>0?col:equipV<0?'#ef4444':T.muted}}>{equipV!==0?(equipV>0?'+':'')+equipV:''}</td>
+                    <td style={{...tdB,color:bov>0?T.success:T.muted}}>{bov>0?'+'+bov:''}</td>
+                    <td style={{...tdB,color:col,fontWeight:800,fontSize:13}}>{tot||''}</td>
                   </tr>);
                 })}
               </tbody>
@@ -911,7 +1023,7 @@ function BuildTab({session}){
         </div>
       </div>
 
-      {/* ── TOOLTIP ── */}
+      {/* Tooltip */}
       {tip.vis&&tip.item&&(()=>{
         const it=tip.item;const effs=it.effects||[];const setNm=it.parent_set?.name;
         return(
@@ -919,20 +1031,15 @@ function BuildTab({session}){
             <div style={{padding:'10px 12px 8px',borderBottom:'1px solid '+T.border2}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:4}}>
                 {it.image_urls?.icon&&<img src={it.image_urls.icon} style={{width:38,height:38,objectFit:'contain',imageRendering:'pixelated',flexShrink:0}} alt=""/>}
-                <div>
-                  <div style={{fontWeight:800,fontSize:13,color:T.text,lineHeight:1.2}}>{it.name}</div>
-                  <div style={{fontSize:10,color:T.accent,marginTop:2}}>{it.type?.name||''}</div>
-                </div>
+                <div><div style={{fontWeight:800,fontSize:13,color:T.text,lineHeight:1.2}}>{it.name}</div><div style={{fontSize:10,color:T.accent,marginTop:2}}>{it.type?.name||''}</div></div>
               </div>
               {it.level&&<div style={{fontSize:11,color:T.accent,fontWeight:700}}>Niveau {it.level}</div>}
             </div>
             <div style={{padding:'8px 12px',maxHeight:260,overflowY:'auto'}}>
-              {effs.length>0
-                ?effs.map((eff,i)=><div key={i} style={{fontSize:11,color:effColor(eff),lineHeight:1.75,fontWeight:600}}>{fmtEff(eff)}</div>)
-                :<div style={{fontSize:10,color:T.muted,fontStyle:'italic'}}>Aucun effet connu</div>}
+              {effs.length>0?effs.map((eff,i)=><div key={i} style={{fontSize:11,color:effColor(eff),lineHeight:1.75,fontWeight:600}}>{fmtEff(eff)}</div>):<div style={{fontSize:10,color:T.muted,fontStyle:'italic'}}>Aucun effet connu</div>}
             </div>
-            {setNm&&<div style={{padding:'6px 12px',borderTop:'1px solid '+T.border2,fontSize:10,color:T.accent,fontStyle:'italic'}}>🔗 {setNm}</div>}
-            <div style={{padding:'4px 12px',background:T.panel,borderTop:'1px solid '+T.border2,fontSize:9,color:T.muted,textAlign:'center',letterSpacing:.5}}>CLIC : équiper &nbsp;|&nbsp; CLIC DROIT : retirer</div>
+            {setNm&&<div style={{padding:'6px 12px',borderTop:'1px solid '+T.border2,fontSize:10,color:T.accent,fontStyle:'italic'}}>🎭 {setNm}</div>}
+            <div style={{padding:'4px 12px',background:T.panel,borderTop:'1px solid '+T.border2,fontSize:9,color:T.muted,textAlign:'center'}}>CLIC : équiper &nbsp;|&nbsp; CLIC DROIT : retirer</div>
           </div>
         );
       })()}
@@ -957,7 +1064,7 @@ function AppInner({ darkMode, toggleTheme }) {
   const [characters,setCharacters]=useState([]);const [loading,setLoading]=useState(false);
   const [activeSurcat,setActiveSurcat]=useState("all");const [activeTab,setActiveTab]=useState("all");const [search,setSearch]=useState("");const [filterCompte,setFilterCompte]=useState("Tous");const [sortBy,setSortBy]=useState("compte");
   const [showForm,setShowForm]=useState(false);const [editingChar,setEditingChar]=useState(null);const [form,setForm]=useState(defaultChar());
-  const [toast,setToast]=useState(null);const [deleteConfirm,setDeleteConfirm]=useState(null);const [shareCount,setShareCount]=useState(0);
+  const [toast,setToast]=useState(null);const [deleteConfirm,setDeleteConfirm]=useState(null);const [shareCount,setShareCount]=useState(0);const [craftExternalItems,setCraftExternalItems]=useState(null);
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setAuthLoading(false);});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe();},[]);
   useEffect(()=>{if(session){loadCharacters();loadShareCount();}},[session]);
   const loadCharacters=async()=>{setLoading(true);const{data,error}=await supabase.from("characters").select("*").order("created_at",{ascending:true});if(!error&&data)setCharacters(data);setLoading(false);};
@@ -1005,10 +1112,10 @@ function AppInner({ darkMode, toggleTheme }) {
           {MAIN_TABS.map(t=>(<button key={t.id} onClick={()=>setMainTab(t.id)} style={{padding:"10px 15px",border:"none",borderBottom:mainTab===t.id?"2px solid "+T.accent:"2px solid transparent",background:"transparent",color:mainTab===t.id?T.accent:T.muted,fontWeight:mainTab===t.id?600:400,cursor:"pointer",fontSize:13,fontFamily:T.font,display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}><span style={{fontSize:13}}>{t.icon}</span><span>{t.label}</span>{t.badge>0&&<span style={{background:T.pvp,color:"#fff",borderRadius:20,padding:"1px 5px",fontSize:9,fontWeight:700}}>{t.badge}</span>}</button>))}
         </div>
       </div>
-      {mainTab==="build"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><BuildTab session={session}/></div>}
+      {mainTab==="build"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><BuildTab session={session} onSendToAtelier={items=>{setCraftExternalItems(items);setMainTab("craft");}}/></div>}
       {mainTab==="partages"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><PartagesTab session={session} characters={characters} showToast={showToast}/></div>}
       {mainTab==="webhooks"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><WebhooksTab session={session}/></div>}
-      {mainTab==="craft"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><CraftTab session={session}/></div>}
+      {mainTab==="craft"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><CraftTab session={session} externalItems={craftExternalItems} onExternalConsumed={()=>setCraftExternalItems(null)}/></div>}
       <div style={{maxWidth:1500,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"14px 20px"}}>
         <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>{surcats.map(sc=><TabBtn key={sc.id} active={activeSurcat===sc.id} color={sc.color} onClick={()=>{setActiveSurcat(sc.id);setActiveTab("all");}} icon={sc.icon} label={sc.label} count={countSurcat(sc)}/>)}</div>
         <div style={{display:"flex",gap:5,marginBottom:12,flexWrap:"wrap"}}>{CATEGORIES.map(cat=><TabBtn key={cat.id} active={activeTab===cat.id} color={cat.color} onClick={()=>setActiveTab(cat.id)} icon={cat.icon} label={cat.label} count={countFor(cat)}/>)}</div>
