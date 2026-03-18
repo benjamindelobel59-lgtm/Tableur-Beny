@@ -9,34 +9,76 @@ const supabase = createClient(
 const ThemeCtx = createContext({});
 const useT = () => useContext(ThemeCtx);
 
-const makeT = (dark) => ({
-  dark,
-  bg:           dark ? "#080a0d" : "#edf0f7",
-  surface:      dark ? "#0d1017" : "#ffffff",
-  surface2:     dark ? "#11141c" : "#f3f4f9",
-  panel:        dark ? "#0a0c12" : "#f8f9fc",
-  border:       dark ? "#1c2030" : "#d0d5e8",
-  border2:      dark ? "#161a27" : "#e2e6f2",
-  text:         dark ? "#dde0ec" : "#12151f",
-  textSub:      dark ? "#7a7f96" : "#4a5068",
-  muted:        dark ? "#464c64" : "#8890a8",
-  accent:       dark ? "#d42020" : "#b91c1c",
-  accent2:      dark ? "#e83535" : "#c62020",
-  accentBg:     dark ? "rgba(212,32,32,0.09)" : "rgba(185,28,28,0.06)",
-  accentBorder: dark ? "rgba(212,32,32,0.32)" : "rgba(185,28,28,0.22)",
-  pvp:          dark ? "#ef4444" : "#dc2626",
-  pvm:          dark ? "#22c55e" : "#16a34a",
-  danger:       dark ? "#ef4444" : "#dc2626",
-  dangerBg:     dark ? "rgba(239,68,68,0.1)" : "rgba(220,38,38,0.07)",
-  success:      dark ? "#22c55e" : "#16a34a",
-  successBg:    dark ? "rgba(34,197,94,0.1)" : "rgba(22,163,74,0.08)",
-  warning:      dark ? "#f59e0b" : "#d97706",
-  discord:      "#5865F2",
-  font:         "'Rajdhani','DM Sans', system-ui, sans-serif",
-  fontBody:     "'DM Sans', system-ui, sans-serif",
-  shadow:       dark ? "0 2px 12px rgba(0,0,0,0.7)" : "0 2px 8px rgba(0,0,0,0.07)",
-  shadowLg:     dark ? "0 12px 40px rgba(0,0,0,0.85)" : "0 12px 40px rgba(0,0,0,0.12)",
-});
+// ─── THEMES ───────────────────────────────────────────────────
+const THEMES = {
+  sombre: {
+    id:"sombre", label:"Sombre", icon:"🌑",
+    dark:true,
+    bg:"#080a0d", surface:"#0d1017", surface2:"#11141c", panel:"#0a0c12",
+    border:"#1c2030", border2:"#161a27",
+    text:"#dde0ec", textSub:"#7a7f96", muted:"#464c64",
+    accent:"#d42020", accent2:"#e83535",
+    accentBg:"rgba(212,32,32,0.09)", accentBorder:"rgba(212,32,32,0.32)",
+    shadow:"0 2px 12px rgba(0,0,0,0.7)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)",
+  },
+  clair: {
+    id:"clair", label:"Clair", icon:"☀️",
+    dark:false,
+    bg:"#edf0f7", surface:"#ffffff", surface2:"#f3f4f9", panel:"#f8f9fc",
+    border:"#d0d5e8", border2:"#e2e6f2",
+    text:"#12151f", textSub:"#4a5068", muted:"#8890a8",
+    accent:"#b91c1c", accent2:"#c62020",
+    accentBg:"rgba(185,28,28,0.06)", accentBorder:"rgba(185,28,28,0.22)",
+    shadow:"0 2px 8px rgba(0,0,0,0.07)", shadowLg:"0 12px 40px rgba(0,0,0,0.12)",
+  },
+  inferno: {
+    id:"inferno", label:"Inferno", icon:"🔥",
+    dark:true,
+    bg:"#0d0700", surface:"#150c02", surface2:"#1c1003", panel:"#110900",
+    border:"#3a1a05", border2:"#2a1203",
+    text:"#f5d9b0", textSub:"#c47a3a", muted:"#7a4020",
+    accent:"#f97316", accent2:"#fb923c",
+    accentBg:"rgba(249,115,22,0.10)", accentBorder:"rgba(249,115,22,0.35)",
+    shadow:"0 2px 12px rgba(0,0,0,0.8)", shadowLg:"0 12px 40px rgba(0,0,0,0.9)",
+  },
+  abyssal: {
+    id:"abyssal", label:"Abyssal", icon:"🌊",
+    dark:true,
+    bg:"#020c14", surface:"#041525", surface2:"#061c30", panel:"#031120",
+    border:"#0d3354", border2:"#082640",
+    text:"#b8e4f9", textSub:"#4a9ac4", muted:"#2a5a7a",
+    accent:"#06b6d4", accent2:"#22d3ee",
+    accentBg:"rgba(6,182,212,0.09)", accentBorder:"rgba(6,182,212,0.35)",
+    shadow:"0 2px 12px rgba(0,0,0,0.75)", shadowLg:"0 12px 40px rgba(0,0,0,0.88)",
+  },
+  sylvestre: {
+    id:"sylvestre", label:"Sylvestre", icon:"🌿",
+    dark:true,
+    bg:"#020d05", surface:"#041408", surface2:"#061a0b", panel:"#031005",
+    border:"#0f3318", border2:"#0a2610",
+    text:"#c4f0cc", textSub:"#4aaa62", muted:"#2a6a3a",
+    accent:"#22c55e", accent2:"#4ade80",
+    accentBg:"rgba(34,197,94,0.09)", accentBorder:"rgba(34,197,94,0.35)",
+    shadow:"0 2px 12px rgba(0,0,0,0.75)", shadowLg:"0 12px 40px rgba(0,0,0,0.88)",
+  },
+};
+
+const makeT = (themeId) => {
+  const th = THEMES[themeId] || THEMES.sombre;
+  return {
+    ...th,
+    pvp:      th.dark ? "#ef4444" : "#dc2626",
+    pvm:      th.dark ? "#22c55e" : "#16a34a",
+    danger:   th.dark ? "#ef4444" : "#dc2626",
+    dangerBg: th.dark ? "rgba(239,68,68,0.1)" : "rgba(220,38,38,0.07)",
+    success:  th.accent === "#22c55e" || th.accent === "#06b6d4" ? th.accent : (th.dark ? "#22c55e" : "#16a34a"),
+    successBg:th.accent === "#22c55e" ? "rgba(34,197,94,0.1)" : th.dark ? "rgba(34,197,94,0.1)" : "rgba(22,163,74,0.08)",
+    warning:  th.dark ? "#f59e0b" : "#d97706",
+    discord:  "#5865F2",
+    font:     "'Rajdhani','DM Sans', system-ui, sans-serif",
+    fontBody: "'DM Sans', system-ui, sans-serif",
+  };
+};
 
 const ACCESS_CODE = "FMX";
 const CLASSES = ["Iop","Cra","Feca","Xelor","Enutrof","Sacrieur","Sadida","Ecaflip","Eniripsa","Sram","Pandawa","Roublard","Zobal","Steamer","Eliotrope","Huppermage","Ouginak","Forgelance","Osamodas"];
@@ -1092,7 +1134,7 @@ function BuildTab({session, onSendToAtelier}){
       {tip.vis&&tip.item&&(()=>{
         const it=tip.item;const effs=it.effects||[];const setNm=it.parent_set?.name;
         return(
-          <div style={{position:'fixed',left:tip.x,top:Math.min(tip.y,window.innerHeight-440),zIndex:9999,pointerEvents:'none',width:255,background:T.dark?'#1a1d27':'#f5f6fa',border:'1px solid '+T.accent,borderRadius:10,boxShadow:'0 8px 30px rgba(0,0,0,.65)',animation:'tipFade .15s ease-out',overflow:'hidden'}}>
+          <div style={{position:'fixed',left:tip.x,top:Math.min(tip.y,window.innerHeight-440),zIndex:9999,pointerEvents:'none',width:255,background:T.surface,border:'1px solid '+T.accent,borderRadius:10,boxShadow:'0 8px 30px rgba(0,0,0,.65)',animation:'tipFade .15s ease-out',overflow:'hidden'}}>
             <div style={{padding:'10px 12px 8px',borderBottom:'1px solid '+T.border2}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:4}}>
                 {it.image_urls?.icon&&<img src={it.image_urls.icon} style={{width:38,height:38,objectFit:'contain',imageRendering:'pixelated',flexShrink:0}} alt=""/>}
@@ -1116,20 +1158,24 @@ function BuildTab({session, onSendToAtelier}){
 
 // ─── APP ROOT ─────────────────────────────────────────────────
 export default function App() {
-  const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("theme_dark")!=="false";}catch{return true;}});
-  const T=makeT(darkMode);
-  const toggleTheme=()=>setDarkMode(d=>{const next=!d;try{localStorage.setItem("theme_dark",String(next));}catch{}return next;});
-  return (<ThemeCtx.Provider value={T}><AppInner darkMode={darkMode} toggleTheme={toggleTheme} /></ThemeCtx.Provider>);
+  const [themeId,setThemeId]=useState(()=>{try{const s=localStorage.getItem("theme_id");return s&&THEMES[s]?s:"sombre";}catch{return "sombre";}});
+  const T=makeT(themeId);
+  const setTheme=(id)=>{try{localStorage.setItem("theme_id",id);}catch{}setThemeId(id);};
+  // legacy migration: if old theme_dark flag was set
+  useEffect(()=>{try{const old=localStorage.getItem("theme_dark");if(old&&!localStorage.getItem("theme_id")){setTheme(old==="false"?"clair":"sombre");}}catch{}},[]);
+  return (<ThemeCtx.Provider value={T}><AppInner themeId={themeId} setTheme={setTheme} /></ThemeCtx.Provider>);
 }
 
 // ─── MAIN APP INNER ───────────────────────────────────────────
-function AppInner({ darkMode, toggleTheme }) {
+function AppInner({ themeId, setTheme }) {
   const T=useT();const fi=makeFi(T);
   const [gateOpen,setGateOpen]=useState(false);const [session,setSession]=useState(null);const [mainTab,setMainTab]=useState("persos");const [authLoading,setAuthLoading]=useState(true);
   const [characters,setCharacters]=useState([]);const [loading,setLoading]=useState(false);
   const [activeSurcat,setActiveSurcat]=useState("all");const [activeTab,setActiveTab]=useState("all");const [search,setSearch]=useState("");const [filterCompte,setFilterCompte]=useState("Tous");const [sortBy,setSortBy]=useState("compte");
   const [showForm,setShowForm]=useState(false);const [editingChar,setEditingChar]=useState(null);const [form,setForm]=useState(defaultChar());
   const [toast,setToast]=useState(null);const [deleteConfirm,setDeleteConfirm]=useState(null);const [shareCount,setShareCount]=useState(0);const [craftExternalItems,setCraftExternalItems]=useState(null);
+  const [showThemePicker,setShowThemePicker]=useState(false);const themePickerRef=useRef(null);
+  useEffect(()=>{if(!showThemePicker)return;const h=(e)=>{if(themePickerRef.current&&!themePickerRef.current.contains(e.target))setShowThemePicker(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[showThemePicker]);
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setAuthLoading(false);});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe();},[]);
   useEffect(()=>{if(session){loadCharacters();loadShareCount();}},[session]);
   const loadCharacters=async()=>{setLoading(true);const{data,error}=await supabase.from("characters").select("*").order("created_at",{ascending:true});if(!error&&data)setCharacters(data);setLoading(false);};
@@ -1178,7 +1224,31 @@ function AppInner({ darkMode, toggleTheme }) {
             {[{l:"TOTAL",v:characters.length,c:T.text},{l:"PVP",v:characters.filter(c=>(c.surcat||"PVM")==="PVP").length,c:T.pvp},{l:"PVM",v:characters.filter(c=>(c.surcat||"PVM")==="PVM").length,c:T.pvm},{l:"MORTS",v:characters.filter(c=>c.etat==="Mort").length,c:T.danger}].map(s=>(<div key={s.l} style={{textAlign:"center",padding:"3px 9px",background:T.panel,border:"1px solid "+T.border,borderRadius:2}}><div style={{fontSize:14,fontWeight:700,color:s.c,lineHeight:1,fontFamily:"'Rajdhani',sans-serif"}}>{s.v}</div><div style={{fontSize:8,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginTop:1}}>{s.l}</div></div>))}
             {mainTab==="persos"&&<button onClick={openAdd} style={{background:T.accent,color:"#fff",border:"none",borderRadius:2,padding:"6px 14px",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:2,textTransform:"uppercase",whiteSpace:"nowrap"}}>+ AJOUTER</button>}
             <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",gap:4,padding:"5px 11px",background:"#5865F2",borderRadius:2,color:"#fff",fontWeight:700,fontSize:12,textDecoration:"none",whiteSpace:"nowrap",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase"}}><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.031.056a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>DISCORD</a>
-            <button onClick={toggleTheme} title={darkMode?"Mode clair":"Mode sombre"} style={{width:30,height:30,borderRadius:2,border:"1px solid "+T.border,background:T.panel,color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{darkMode?"☀️":"🌙"}</button>
+            {/* ── THEME PICKER ── */}
+            <div style={{position:"relative",flexShrink:0}} ref={themePickerRef}>
+              <button onClick={()=>setShowThemePicker(p=>!p)} title="Changer de thème" style={{height:30,padding:"0 10px",borderRadius:2,border:"1px solid "+(showThemePicker?T.accentBorder:T.border),background:showThemePicker?T.accentBg:T.panel,color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",gap:5,transition:"all 0.15s"}}>
+                <span style={{fontSize:14}}>{THEMES[themeId]?.icon||"🎨"}</span>
+                <span style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,letterSpacing:1,fontSize:11,color:showThemePicker?T.accent:T.textSub}}>{THEMES[themeId]?.label||"Thème"}</span>
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="none" style={{transition:"transform 0.2s",transform:showThemePicker?"rotate(180deg)":"rotate(0deg)"}}><path d="M2 3.5L5 6.5L8 3.5" stroke={T.muted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {showThemePicker&&(
+                <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:T.surface,border:"1px solid "+T.border,borderRadius:6,boxShadow:T.shadowLg,overflow:"hidden",zIndex:50,minWidth:150}}>
+                  <div style={{padding:"6px 10px 4px",fontSize:8,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontFamily:"'Rajdhani',sans-serif",fontWeight:700,borderBottom:"1px solid "+T.border2}}>🎨 THÈME</div>
+                  {Object.values(THEMES).map(th=>{const active=themeId===th.id;return(
+                    <button key={th.id} onClick={()=>{setTheme(th.id);setShowThemePicker(false);}} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:"9px 12px",border:"none",background:active?T.accentBg:"transparent",color:active?T.accent:T.text,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontWeight:active?700:500,fontSize:13,letterSpacing:0.5,textAlign:"left",transition:"background 0.12s"}}
+                      onMouseEnter={e=>{if(!active)e.currentTarget.style.background=T.surface2;}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
+                      <span style={{fontSize:16,flexShrink:0}}>{th.icon}</span>
+                      <span style={{flex:1}}>{th.label}</span>
+                      {active&&<span style={{fontSize:10,color:T.accent}}>✓</span>}
+                      <span style={{display:"flex",gap:3,flexShrink:0}}>
+                        <span style={{width:8,height:8,borderRadius:"50%",background:th.accent,display:"inline-block"}}/>
+                        <span style={{width:8,height:8,borderRadius:"50%",background:th.bg==="transparent"?"#fff":th.text,display:"inline-block",opacity:0.5}}/>
+                      </span>
+                    </button>
+                  );})}
+                </div>
+              )}
+            </div>
             <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 8px",background:T.panel,border:"1px solid "+T.border,borderRadius:2}}><span style={{fontSize:10,color:T.textSub,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif"}}>{session.user.email}</span><button onClick={handleLogout} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.25)",borderRadius:2,padding:"2px 7px",color:T.danger,cursor:"pointer",fontSize:10,fontFamily:"'Rajdhani',sans-serif",fontWeight:700,letterSpacing:1}}>DÉCO</button></div>
           </div>
         </div>
