@@ -316,6 +316,27 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   useEffect(()=>{try{localStorage.setItem(lsNameKey,listName);}catch{}},[listName]);
   const showToast=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2800);};
   useEffect(()=>{localStorage.removeItem(`craft_session_${session.user.id}`);loadSavedLists();},[]);
+
+  // ── Re-enrich existing recipe ingredients that are missing level ──
+  useEffect(()=>{
+    const enrichMissing=async()=>{
+      let changed=false;
+      const updated=await Promise.all(craftItems.map(async({item,qty})=>{
+        if(!item.recipe?.length)return{item,qty};
+        const needsEnrich=item.recipe.some(r=>r.level==null&&r.ankama_id);
+        if(!needsEnrich)return{item,qty};
+        const enriched=await Promise.all(item.recipe.map(async(r)=>{
+          if(r.level!=null||!r.ankama_id)return r;
+          const info=await fetchIconById(r.ankama_id);
+          if(info?.level!=null){changed=true;return{...r,level:info.level,name:r.name||info.name,image_url:r.image_url||info.icon};}
+          return r;
+        }));
+        return{item:{...item,recipe:enriched},qty};
+      }));
+      if(changed)setCraftItems(updated);
+    };
+    if(craftItems.length>0)enrichMissing();
+  },[]);
   // ── Receive items from BuildTab ──
   useEffect(()=>{
     if(!externalItems||!externalItems.length)return;
