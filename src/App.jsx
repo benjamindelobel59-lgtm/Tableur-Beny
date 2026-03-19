@@ -80,94 +80,10 @@ const makeT = (themeId) => {
   };
 };
 
-// ─── AUTH PAGE ────────────────────────────────────────────────
-// ─── AUTH MODAL ───────────────────────────────────────────────
-function AuthModal() {
-  const T=useT();const fi=makeFi(T);
-  const [mode,setMode]=useState("login");
-  const [email,setEmail]=useState("");const [pwd,setPwd]=useState("");
-  const [loading,setLoading]=useState(false);const [err,setErr]=useState("");const [ok,setOk]=useState("");
-  const handle=async()=>{
-    setErr("");setOk("");setLoading(true);
-    try{
-      if(mode==="login"){
-        const{error}=await supabase.auth.signInWithPassword({email,password:pwd});
-        if(error)throw error;
-      }else{
-        const{error}=await supabase.auth.signUp({email,password:pwd});
-        if(error)throw error;
-        setOk("Compte créé ! Connecte-toi maintenant.");
-        setMode("login");setLoading(false);return;
-      }
-    }catch(e){setErr(e.message||"Erreur");}
-    setLoading(false);
-  };
-  return (
-    <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(3px)",background:"rgba(0,0,0,0.65)"}}>
-      <div style={{width:"100%",maxWidth:430,margin:16,background:T.surface,border:"1px solid "+T.accentBorder,borderRadius:6,boxShadow:T.shadowLg,position:"relative",overflow:"hidden"}}>
-        {/* Top accent bar */}
-        <div style={{height:3,background:T.accent}}/>
-        <div style={{padding:"22px 24px 24px"}}>
-          {/* Header */}
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
-            <div style={{width:3,height:24,background:T.accent,borderRadius:2,flexShrink:0}}/>
-            <div>
-              <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:18,color:T.text,letterSpacing:2,textTransform:"uppercase",lineHeight:1}}>TABLEUR <span style={{color:T.accent}}>BY BENY</span></div>
-              <div style={{fontSize:9,color:T.muted,letterSpacing:3,textTransform:"uppercase",marginTop:2}}>Serveur Héroïque</div>
-            </div>
-          </div>
-
-          {/* Info banner faux mail */}
-          <div style={{marginBottom:18,padding:"12px 14px",background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:4,display:"flex",gap:10,alignItems:"flex-start"}}>
-            <span style={{fontSize:20,flexShrink:0,lineHeight:1,marginTop:1}}>💡</span>
-            <div>
-              <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:13,color:T.accent,letterSpacing:1,marginBottom:4,textTransform:"uppercase"}}>Un faux mail suffit !</div>
-              <div style={{fontSize:12,color:T.textSub,fontFamily:"'DM Sans',sans-serif",lineHeight:1.55}}>
-                Aucune confirmation par email n'est nécessaire.<br/>
-                Inscris-toi avec <strong style={{color:T.text}}>n'importe quelle adresse inventée</strong> comme <span style={{color:T.accent,fontFamily:"monospace",fontSize:11}}>toto@toto.fr</span>.<br/>
-                Ton compte sauvegardera toutes tes données <strong style={{color:T.text}}>même si le cache de ton navigateur est vidé</strong>.
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div style={{display:"flex",background:T.panel,borderRadius:3,padding:3,marginBottom:16,border:"1px solid "+T.border}}>
-            {[["login","🔑 CONNEXION"],["register","✨ INSCRIPTION"]].map(([m,l])=>(
-              <button key={m} onClick={()=>{setMode(m);setErr("");setOk("");}} style={{flex:1,padding:"9px",borderRadius:2,border:"none",background:mode===m?T.accent:"transparent",color:mode===m?"#fff":T.muted,fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:13,letterSpacing:1,textTransform:"uppercase",transition:"all 0.2s"}}>{l}</button>
-            ))}
-          </div>
-
-          {/* Fields */}
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div>
-              <label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>
-                EMAIL <span style={{color:T.accent,fontWeight:400}}>— réel ou inventé, peu importe</span>
-              </label>
-              <input autoFocus type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ex: toto@toto.fr" style={{...fi,borderRadius:3,fontSize:13}} onKeyDown={e=>e.key==="Enter"&&handle()} />
-            </div>
-            <div>
-              <label style={{display:"block",color:T.muted,fontSize:9,marginBottom:5,fontWeight:700,letterSpacing:2,textTransform:"uppercase",fontFamily:"'Rajdhani',sans-serif"}}>MOT DE PASSE <span style={{color:T.muted,fontWeight:400}}>— min. 6 caractères</span></label>
-              <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••" style={{...fi,borderRadius:3,fontSize:13}} onKeyDown={e=>e.key==="Enter"&&handle()} />
-            </div>
-          </div>
-
-          {err&&<div style={{marginTop:12,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.3)",borderRadius:3,color:T.danger,fontSize:12,fontWeight:700}}>⚠ {err}</div>}
-          {ok &&<div style={{marginTop:12,padding:"8px 12px",background:T.successBg,border:"1px solid rgba(34,197,94,0.3)",borderRadius:3,color:T.success,fontSize:12,fontWeight:700}}>✓ {ok}</div>}
-
-          <button onClick={handle} disabled={loading} style={{width:"100%",marginTop:16,padding:"13px",borderRadius:3,border:"none",background:loading?T.surface2:T.accent,color:loading?T.muted:"#fff",fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:15,letterSpacing:2,textTransform:"uppercase",transition:"opacity .15s"}}>
-            {loading?"CHARGEMENT...":(mode==="login"?"SE CONNECTER →":"CRÉER MON COMPTE →")}
-          </button>
-
-          <div style={{textAlign:"center",marginTop:11,fontSize:10,color:T.muted,fontFamily:"'DM Sans',sans-serif"}}>
-            Tes données sont liées à ton compte, pas au navigateur 🔒
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
+const ACCESS_CODE = "FMX";
+const CLASSES = ["Iop","Cra","Feca","Xelor","Enutrof","Sacrieur","Sadida","Ecaflip","Eniripsa","Sram","Pandawa","Roublard","Zobal","Steamer","Eliotrope","Huppermage","Ouginak","Forgelance","Osamodas"];
+const ETATS   = ["Prêt","À stuff","À xp","Pano Sagesse","Mort","Check","Métier","Banque"];
+const ETAT_COLORS = {"Prêt":"#22c55e","À stuff":"#6ee7b7","À xp":"#818cf8","Pano Sagesse":"#fbbf24","Mort":"#ef4444","Check":"#22d3ee","Métier":"#fb923c","Banque":"#a8a29e"};
 const CLASS_ICONS = {"Iop":"/classes/iop.png","Cra":"/classes/cra.png","Feca":"/classes/feca.png","Xelor":"/classes/xelor.png","Enutrof":"/classes/enutrof.png","Sacrieur":"/classes/sacrieur.png","Sadida":"/classes/sadida.png","Ecaflip":"/classes/ecaflip.png","Eniripsa":"/classes/eniripsa.png","Sram":"/classes/sram.png","Pandawa":"/classes/pandawa.png","Roublard":"/classes/roublard.png","Zobal":"/classes/zobal.png","Steamer":"/classes/steamer.png","Eliotrope":"/classes/eliotrope.png","Huppermage":"/classes/huppermage.png","Ouginak":"/classes/ouginak.png","Forgelance":"/classes/forgelance.png","Osamodas":"/classes/osamodas.png"};
 const CATEGORIES = [
   {id:"all",    label:"Tous",        icon:"⚔️", color:"#6b7280", etats:null},
@@ -206,6 +122,96 @@ const buildEmbed = (type,char,extra={}) => {
   return null;
 };
 const sendWebhook = async(url,payload)=>{if(!url)return;try{await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});}catch{}};
+
+// ─── GATE PAGE ────────────────────────────────────────────────
+function GatePage({ onSuccess }) {
+  const T = useT();
+  const [input,setInput]=useState("");const [error,setError]=useState(false);const [shake,setShake]=useState(false);
+  const tryCode=()=>{if(input.trim().toUpperCase()===ACCESS_CODE){onSuccess();}else{setError(true);setShake(true);setInput("");setTimeout(()=>setShake(false),600);setTimeout(()=>setError(false),2500);}};
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+        @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+        .shake{animation:shake 0.5s ease;}
+        *{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}
+        input::placeholder{color:${T.muted};}
+        select option{background:${T.surface};}
+        @keyframes pulse{0%,100%{opacity:.15}50%{opacity:.28}}
+      `}</style>
+      {/* Background grid */}
+      <div style={{position:"absolute",inset:0,backgroundImage:`linear-gradient(${T.border} 1px,transparent 1px),linear-gradient(90deg,${T.border} 1px,transparent 1px)`,backgroundSize:"60px 60px",opacity:.35,pointerEvents:"none"}}/>
+      {/* Red glow top */}
+      <div style={{position:"absolute",top:-120,left:"50%",transform:"translateX(-50%)",width:600,height:300,background:"radial-gradient(ellipse,rgba(212,32,32,0.18) 0%,transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{width:"100%",maxWidth:420,margin:16,position:"relative",zIndex:1,textAlign:"center"}}>
+        {/* Logo */}
+        <div style={{marginBottom:32}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:10}}>
+            <div style={{width:3,height:36,background:T.accent,borderRadius:2}}/>
+            <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:32,color:T.text,letterSpacing:2,textTransform:"uppercase",lineHeight:1}}>TABLEUR<span style={{color:T.accent}}> BY BENY</span></div>
+            <div style={{width:3,height:36,background:T.accent,borderRadius:2}}/>
+          </div>
+          <div style={{fontSize:10,color:T.muted,letterSpacing:5,textTransform:"uppercase"}}>SERVEUR HÉROÏQUE · ACCÈS RESTREINT</div>
+        </div>
+        {/* Card */}
+        <div style={{background:T.surface,border:"1px solid "+(error?"rgba(239,68,68,0.5)":T.border),borderRadius:4,padding:"28px",boxShadow:T.shadowLg,position:"relative"}}>
+          {/* Top red bar */}
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:error?"#ef4444":T.accent,borderRadius:"4px 4px 0 0"}}/>
+          <div style={{fontSize:11,color:T.muted,marginBottom:20,letterSpacing:2,textTransform:"uppercase"}}>🔒 Code d'accès requis</div>
+          <div className={shake?"shake":""} style={{marginBottom:12}}>
+            <input value={input} onChange={e=>setInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&tryCode()} placeholder="— CODE —" maxLength={20}
+              style={{width:"100%",background:T.panel,border:"2px solid "+(error?"rgba(239,68,68,0.6)":T.accentBorder),borderRadius:3,padding:"15px",color:error?T.danger:T.accent,fontSize:24,fontWeight:700,outline:"none",fontFamily:"'Rajdhani',sans-serif",boxSizing:"border-box",textAlign:"center",letterSpacing:10}} />
+          </div>
+          {error&&<div style={{marginBottom:12,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.3)",borderRadius:3,color:T.danger,fontSize:12,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>⚠ Code incorrect</div>}
+          <button onClick={tryCode} style={{width:"100%",padding:"13px",borderRadius:3,border:"none",background:T.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:16,letterSpacing:3,textTransform:"uppercase",transition:"opacity .15s"}}
+            onMouseEnter={e=>e.target.style.opacity=".85"} onMouseLeave={e=>e.target.style.opacity="1"}>ENTRER →</button>
+        </div>
+        <div style={{marginTop:16,fontSize:11,color:T.muted,letterSpacing:1}}>Pas de code ? <a href="https://discord.gg/z4VXdcQx4Y" target="_blank" rel="noopener noreferrer" style={{color:"#5865F2",textDecoration:"none",fontWeight:700}}>DISCORD ⚡</a></div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AUTH PAGE ────────────────────────────────────────────────
+function AuthPage() {
+  const T=useT();const fi=makeFi(T);
+  const [mode,setMode]=useState("login");const [email,setEmail]=useState("");const [pwd,setPwd]=useState("");
+  const [loading,setLoading]=useState(false);const [err,setErr]=useState("");const [ok,setOk]=useState("");
+  const handle=async()=>{setErr("");setOk("");setLoading(true);try{if(mode==="login"){const{error}=await supabase.auth.signInWithPassword({email,password:pwd});if(error)throw error;}else{const{error}=await supabase.auth.signUp({email,password:pwd});if(error)throw error;setOk("Compte créé ! Vérifie ton email.");setMode("login");setLoading(false);return;}}catch(e){setErr(e.message||"Erreur");}setLoading(false);};
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:T.font,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,backgroundImage:`linear-gradient(${T.border} 1px,transparent 1px),linear-gradient(90deg,${T.border} 1px,transparent 1px)`,backgroundSize:"60px 60px",opacity:.3,pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:-100,left:"50%",transform:"translateX(-50%)",width:500,height:260,background:"radial-gradient(ellipse,rgba(212,32,32,0.15) 0%,transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{width:"100%",maxWidth:400,margin:16,position:"relative",zIndex:1}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+            <div style={{width:3,height:30,background:T.accent,borderRadius:2}}/>
+            <div style={{fontFamily:"'Rajdhani',sans-serif",fontWeight:700,fontSize:26,color:T.text,letterSpacing:2,textTransform:"uppercase"}}>TABLEUR<span style={{color:T.accent}}> BY BENY</span></div>
+            <div style={{width:3,height:30,background:T.accent,borderRadius:2}}/>
+          </div>
+          <div style={{fontSize:10,color:T.muted,letterSpacing:4,textTransform:"uppercase"}}>SERVEUR HÉROÏQUE</div>
+        </div>
+        <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:4,padding:26,boxShadow:T.shadowLg,position:"relative"}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:T.accent,borderRadius:"4px 4px 0 0"}}/>
+          <div style={{display:"flex",background:T.panel,borderRadius:3,padding:3,marginBottom:20,border:"1px solid "+T.border}}>
+            {["login","register"].map(m=>(
+              <button key={m} onClick={()=>{setMode(m);setErr("");setOk("");}} style={{flex:1,padding:"8px",borderRadius:2,border:"none",background:mode===m?T.accent:"transparent",color:mode===m?"#fff":T.muted,fontWeight:700,cursor:"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:14,letterSpacing:2,textTransform:"uppercase",transition:"all 0.2s"}}>{m==="login"?"CONNEXION":"INSCRIPTION"}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:13}}>
+            {[["EMAIL","email",email,setEmail,"ton@email.com"],["MOT DE PASSE","password",pwd,setPwd,"••••••••"]].map(([l,type,v,set,ph])=>(
+              <div key={l}><label style={{display:"block",color:T.muted,fontSize:10,marginBottom:5,fontWeight:700,letterSpacing:2}}>{l}</label><input type={type} value={v} onChange={e=>set(e.target.value)} placeholder={ph} style={{...fi,borderRadius:3}} onKeyDown={e=>e.key==="Enter"&&handle()} /></div>
+            ))}
+          </div>
+          {err&&<div style={{marginTop:13,padding:"8px 12px",background:T.dangerBg,border:"1px solid rgba(239,68,68,0.3)",borderRadius:3,color:T.danger,fontSize:12,fontWeight:700,letterSpacing:1}}>⚠ {err}</div>}
+          {ok &&<div style={{marginTop:13,padding:"8px 12px",background:T.successBg,border:"1px solid rgba(34,197,94,0.3)",borderRadius:3,color:T.success,fontSize:12,fontWeight:700}}>✓ {ok}</div>}
+          <button onClick={handle} disabled={loading} style={{width:"100%",marginTop:18,padding:"12px",borderRadius:3,border:"none",background:loading?T.surface2:T.accent,color:loading?T.muted:"#fff",fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:"'Rajdhani',sans-serif",fontSize:16,letterSpacing:3,textTransform:"uppercase"}}>{loading?"CHARGEMENT...":(mode==="login"?"SE CONNECTER →":"CRÉER MON COMPTE →")}</button>
+        </div>
+        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:11,letterSpacing:1}}>DONNÉES PRIVÉES ET SÉCURISÉES 🔒</div>
+      </div>
+    </div>
+  );
+}
 
 // ─── WEBHOOKS TAB ─────────────────────────────────────────────
 function WebhooksTab({ session }) {
@@ -1214,35 +1220,11 @@ function BuildTab({session, onSendToAtelier}){
 
 // ─── APP ROOT ─────────────────────────────────────────────────
 export default function App() {
-  const THEME_VERSION = "2"; // Incrémenter pour forcer reset
-  const [themeId,setThemeId]=useState(()=>{
-    try{
-      const v=localStorage.getItem("theme_version");
-      const s=localStorage.getItem("theme_id");
-      // Si version différente ou thème invalide → reset sombre
-      if(v!==THEME_VERSION||!s||!THEMES[s])return "sombre";
-      return s;
-    }catch{return "sombre";}
-  });
+  const [themeId,setThemeId]=useState(()=>{try{const s=localStorage.getItem("theme_id");return s&&THEMES[s]?s:"sombre";}catch{return "sombre";}});
   const T=makeT(themeId);
-  const setTheme=(id)=>{
-    try{
-      localStorage.setItem("theme_id",id);
-      localStorage.setItem("theme_version",THEME_VERSION);
-    }catch{}
-    setThemeId(id);
-  };
-  useEffect(()=>{
-    try{
-      const v=localStorage.getItem("theme_version");
-      if(v!==THEME_VERSION){
-        // Reset: vider ancien thème, repartir sur sombre
-        localStorage.removeItem("theme_id");
-        localStorage.removeItem("theme_dark");
-        localStorage.setItem("theme_version",THEME_VERSION);
-      }
-    }catch{}
-  },[]);
+  const setTheme=(id)=>{try{localStorage.setItem("theme_id",id);}catch{}setThemeId(id);};
+  // legacy migration: if old theme_dark flag was set
+  useEffect(()=>{try{const old=localStorage.getItem("theme_dark");if(old&&!localStorage.getItem("theme_id")){setTheme(old==="false"?"clair":"sombre");}}catch{}},[]);
   return (<ThemeCtx.Provider value={T}><AppInner themeId={themeId} setTheme={setTheme} /></ThemeCtx.Provider>);
 }
 
@@ -1270,7 +1252,8 @@ function AppInner({ themeId, setTheme }) {
   const handleEtatChange=async(id,etat)=>{const char=characters.find(c=>c.id===id);const oldEtat=char?.etat;const{error}=await supabase.from("characters").update({etat}).eq("id",id);if(error)return;setCharacters(characters.map(c=>c.id===id?{...c,etat}:c));const newCat=getCatForEtat(etat);setActiveTab(newCat);if(etat==="Mort")fireWebhook("mort",{...char,etat},{});else fireWebhook("etat",{...char,etat},{oldEtat,newEtat:etat});showToast('→ "'+CATEGORIES.find(c=>c.id===newCat)?.label+'" ✓');};
   const handleSurcatChange=async(id,surcat)=>{const char=characters.find(c=>c.id===id);const oldSurcat=char?.surcat||"PVM";const{error}=await supabase.from("characters").update({surcat}).eq("id",id);if(error)return;setCharacters(characters.map(c=>c.id===id?{...c,surcat}:c));fireWebhook("surcat",{...char,surcat},{oldSurcat,newSurcat:surcat});showToast("Dossier → "+surcat+" ✓");};
   const handleLogout=async()=>await supabase.auth.signOut();
-  const showAuthModal=!authLoading&&!session;
+  if(authLoading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.accent,fontFamily:T.font}}><div style={{textAlign:"center"}}><div style={{width:50,height:2,background:T.accent,margin:"0 auto 16px",animation:"none"}}></div><div style={{fontSize:11,letterSpacing:5,color:T.muted,fontFamily:"'Rajdhani',sans-serif",textTransform:"uppercase"}}>Chargement...</div></div></div>);
+  if(!session)return<AuthPage/>;
   const comptes=["Tous",...Array.from(new Set(characters.map(c=>c.compte).filter(Boolean)))];
   const surcats=[{id:"all",label:"Tous",icon:"⚔️",color:"#6b7280"},{id:"PVP",label:"PVP",icon:"🏆",color:T.pvp},{id:"PVM",label:"PVM",icon:"🐉",color:T.pvm}];
   const countSurcat=(sc)=>sc.id==="all"?characters.length:characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
@@ -1280,7 +1263,6 @@ function AppInner({ themeId, setTheme }) {
   const MAIN_TABS=[{id:"persos",icon:"⚔️",label:"PERSONNAGES"},{id:"craft",icon:"⚗️",label:"ATELIER CRAFT"},{id:"build",icon:"🏗️",label:"BUILD"},{id:"partages",icon:"🔗",label:"PARTAGES",badge:shareCount},{id:"webhooks",icon:"🔔",label:"WEBHOOKS"}];
   return (
     <div style={{minHeight:"100vh",background:T.bg,fontFamily:T.font,color:T.text}}>
-      {showAuthModal&&<AuthModal/>}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *{scrollbar-width:thin;scrollbar-color:${T.border} ${T.bg};}
