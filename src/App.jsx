@@ -610,7 +610,14 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                           </div>
                         )}
                         <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-                          {(!hasSubCraft||isSkipped)&&<input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:10,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />}
+                          {(!hasSubCraft||isSkipped)&&(
+                            <>
+                              <div onClick={()=>setBanque(b=>({...b,[key]:complete?0:total}))} title={complete?"Retirer":"J'ai tout"} style={{width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
+                                {complete&&<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </div>
+                              <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:10,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
+                            </>
+                          )}
                           <span style={{fontSize:11,fontWeight:700,color:complete?T.success:T.accent,background:complete?T.successBg:T.accentBg,borderRadius:5,padding:"2px 7px",border:"1px solid "+(complete?"rgba(34,197,94,0.3)":T.accentBorder),minWidth:28,textAlign:"center"}}>×{total}</span>
                         </div>
                       </div>
@@ -635,9 +642,12 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                     {!isCollapsed&&(subCraftsEnabled&&tree?(
                       tree.length>0?(<div style={{padding:"11px 13px"}}>{renderNodes(tree,0)}</div>):(<div style={{padding:"11px 13px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette connue</div>)
                     ):(
-                      item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
+                      {item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
                       {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:108,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:9,background:complete?T.successBg:T.surface2,padding:"7px 5px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s",position:"relative"}}>
-                        {complete&&<div style={{position:"absolute",top:4,right:4,fontSize:9,color:T.success}}>✓</div>}
+                        {/* Checkbox bouton MAX */}
+                        <div onClick={()=>setBanque(b=>({...b,[key]:complete?0:total}))} title={complete?"Retirer":"J'ai tout"} style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
+                          {complete&&<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
                         <div style={{width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:30,height:30,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:19}}>🌿</span>}</div>
                         <div style={{fontSize:10,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.25,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
                         <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>{r.level?`Niv. ${r.level}`:"ressource"}</div>
@@ -671,6 +681,9 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                     <div style={{textAlign:"center"}}>{ing.level?<span style={{fontSize:10,fontWeight:700,color:T.textSub,background:T.surface2,border:"1px solid "+T.border2,borderRadius:4,padding:"1px 5px"}}>{ing.level}</span>:<span style={{fontSize:9,color:T.muted}}>—</span>}</div>
                     <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:5,padding:"2px 9px"}}>{ing.qty}</span></div>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
+                      <div onClick={()=>setBanque(b=>({...b,[k]:complete?0:ing.qty}))} title={complete?"Retirer":"J'ai tout"} style={{width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border2),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
+                        {complete&&<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
                       <button onClick={()=>setBanque(b=>({...b,[k]:Math.max(0,bv(k)-1)}))} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.border2,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
                       <input type="number" min={0} value={banque[k]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[k]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:44,background:T.surface2,border:"1px solid "+(inBanque>0?"rgba(34,197,94,0.35)":T.border2),borderRadius:5,padding:"3px 3px",color:inBanque>0?T.success:T.muted,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
                       <button onClick={()=>setBanque(b=>({...b,[k]:bv(k)+1}))} style={{width:18,height:18,borderRadius:4,border:"1px solid rgba(34,197,94,0.3)",background:T.successBg,color:T.success,cursor:"pointer",fontFamily:T.font,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
