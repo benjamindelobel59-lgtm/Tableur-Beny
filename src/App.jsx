@@ -1214,11 +1214,35 @@ function BuildTab({session, onSendToAtelier}){
 
 // ─── APP ROOT ─────────────────────────────────────────────────
 export default function App() {
-  const [themeId,setThemeId]=useState(()=>{try{const s=localStorage.getItem("theme_id");return s&&THEMES[s]?s:"sombre";}catch{return "sombre";}});
+  const THEME_VERSION = "2"; // Incrémenter pour forcer reset
+  const [themeId,setThemeId]=useState(()=>{
+    try{
+      const v=localStorage.getItem("theme_version");
+      const s=localStorage.getItem("theme_id");
+      // Si version différente ou thème invalide → reset sombre
+      if(v!==THEME_VERSION||!s||!THEMES[s])return "sombre";
+      return s;
+    }catch{return "sombre";}
+  });
   const T=makeT(themeId);
-  const setTheme=(id)=>{try{localStorage.setItem("theme_id",id);}catch{}setThemeId(id);};
-  // legacy migration: if old theme_dark flag was set
-  useEffect(()=>{try{const old=localStorage.getItem("theme_dark");if(old&&!localStorage.getItem("theme_id")){setTheme(old==="false"?"clair":"sombre");}}catch{}},[]);
+  const setTheme=(id)=>{
+    try{
+      localStorage.setItem("theme_id",id);
+      localStorage.setItem("theme_version",THEME_VERSION);
+    }catch{}
+    setThemeId(id);
+  };
+  useEffect(()=>{
+    try{
+      const v=localStorage.getItem("theme_version");
+      if(v!==THEME_VERSION){
+        // Reset: vider ancien thème, repartir sur sombre
+        localStorage.removeItem("theme_id");
+        localStorage.removeItem("theme_dark");
+        localStorage.setItem("theme_version",THEME_VERSION);
+      }
+    }catch{}
+  },[]);
   return (<ThemeCtx.Provider value={T}><AppInner themeId={themeId} setTheme={setTheme} /></ThemeCtx.Provider>);
 }
 
