@@ -642,7 +642,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                     {!isCollapsed&&(subCraftsEnabled&&tree?(
                       tree.length>0?(<div style={{padding:"11px 13px"}}>{renderNodes(tree,0)}</div>):(<div style={{padding:"11px 13px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette connue</div>)
                     ):(
-                      {item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
+                      item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
                       {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:108,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:9,background:complete?T.successBg:T.surface2,padding:"7px 5px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s",position:"relative"}}>
                         {/* Checkbox bouton MAX */}
                         <div onClick={()=>setBanque(b=>({...b,[key]:complete?0:total}))} title={complete?"Retirer":"J'ai tout"} style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
