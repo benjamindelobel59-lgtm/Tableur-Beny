@@ -493,10 +493,12 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
   const ingredients=totalIngredients();
   const bv=(key)=>Math.max(0,parseInt(banque[key]||0,10)||0);
   const pb={borderRight:"1px solid "+T.border};
+  const [showCol1,setShowCol1]=useState(true);
+  const [showCol2,setShowCol2]=useState(true);
   return (
     <div style={{display:"flex",height:"calc(100vh - 112px)",background:T.bg,overflow:"hidden",borderRadius:12,border:"1px solid "+T.border,boxShadow:T.shadow}}>
       {/* ── COL 1 : DOSSIERS ── */}
-      <div style={{width:195,flexShrink:0,background:T.panel,...pb,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {showCol1&&<div style={{width:195,flexShrink:0,background:T.panel,...pb,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 13px",borderBottom:"1px solid "+T.border}}>
           <span style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Dossiers</span>
         </div>
@@ -511,9 +513,9 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
             <button onClick={e=>{e.stopPropagation();setDeleteId(list.id);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,padding:1,flexShrink:0,opacity:0.55}}>✕</button>
           </div>);})}
         </div>
-      </div>
+      </div>}
       {/* ── COL 2 : AJOUTER + LISTE ── */}
-      <div style={{width:268,flexShrink:0,background:T.surface,...pb,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {showCol2&&<div style={{width:268,flexShrink:0,background:T.surface,...pb,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{padding:"11px 11px 7px",borderBottom:"1px solid "+T.border}}>
           <div style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontWeight:700,marginBottom:7}}>Ajouter un craft</div>
           <div style={{display:"flex",gap:3,marginBottom:7}}>
@@ -534,7 +536,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
         </div>
         {results.length>0&&(<div style={{maxHeight:200,overflowY:"auto",borderBottom:"1px solid "+T.border}}>
           {results.map(item=>{const isLoad=loadingId===item.ankama_id;const alrIn=craftItems.some(ci=>ci.item.ankama_id===item.ankama_id);return(<div key={item.ankama_id} onClick={()=>!isLoad&&addItem(item)} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 11px",borderBottom:"1px solid "+T.border2,cursor:isLoad?"wait":"pointer",background:alrIn?T.accentBg:"transparent"}} onMouseEnter={e=>{if(!alrIn)e.currentTarget.style.background=T.surface2;}} onMouseLeave={e=>{e.currentTarget.style.background=alrIn?T.accentBg:"transparent";}}>
-            <div style={{width:28,height:28,borderRadius:5,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:22,height:22,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:12}}>⚗️</span>}</div>
+            <div style={{width:40,height:40,borderRadius:7,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{item.image_urls?.icon?<img src={item.image_urls.icon} style={{width:32,height:32,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:16}}>⚗️</span>}</div>
             <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:alrIn?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>{item.level&&<div style={{fontSize:9,color:T.muted}}>Niv. {item.level}</div>}</div>
             <span style={{flexShrink:0,fontSize:13,color:T.accent}}>{isLoad?"⏳":alrIn?"✓":"+"}</span>
           </div>);})}
@@ -545,22 +547,26 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
         </div>
         <div style={{flex:1,overflowY:"auto"}}>
           {craftItems.length===0?(<div style={{textAlign:"center",padding:"28px 14px",color:T.muted}}><div style={{fontSize:25,marginBottom:6,opacity:0.35}}>⚗️</div><div style={{fontSize:11}}>Recherche et clique pour ajouter</div></div>)
-          :craftItems.map(({item,qty})=>(<div key={item.ankama_id} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 11px",borderBottom:"1px solid "+T.border2}}>
-            <div style={{width:30,height:30,borderRadius:6,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{item.image_url?<img src={item.image_url} style={{width:24,height:24,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:14}}>⚗️</span>}</div>
-            <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>{item.job&&<div style={{fontSize:9,color:T.muted}}>{item.job}</div>}</div>
-            <div style={{display:"flex",alignItems:"center",gap:2,flexShrink:0}}>
-              <button onClick={()=>updateQty(item.ankama_id,qty-1)} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.border,background:T.surface2,color:qty===1?T.danger:T.text,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-              <span style={{fontSize:11,fontWeight:700,color:T.accent,minWidth:20,textAlign:"center"}}>×{qty}</span>
-              <button onClick={()=>updateQty(item.ankama_id,qty+1)} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:T.font,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-              <button onClick={()=>removeItem(item.ankama_id)} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,marginLeft:1}}>✕</button>
+          :craftItems.map(({item,qty})=>(<div key={item.ankama_id} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderBottom:"1px solid "+T.border2}}>
+            <div style={{width:44,height:44,borderRadius:8,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{item.image_url?<img src={item.image_url} style={{width:36,height:36,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:18}}>⚗️</span>}</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>{item.job&&<div style={{fontSize:10,color:T.muted}}>{item.job}</div>}</div>
+            <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+              <button onClick={()=>updateQty(item.ankama_id,qty-1)} style={{width:22,height:22,borderRadius:4,border:"1px solid "+T.border,background:T.surface2,color:qty===1?T.danger:T.text,cursor:"pointer",fontFamily:T.font,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+              <span style={{fontSize:13,fontWeight:700,color:T.accent,minWidth:22,textAlign:"center"}}>×{qty}</span>
+              <button onClick={()=>updateQty(item.ankama_id,qty+1)} style={{width:22,height:22,borderRadius:4,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:T.font,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+              <button onClick={()=>removeItem(item.ankama_id)} style={{width:22,height:22,borderRadius:4,border:"none",background:"transparent",color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13,marginLeft:1}}>✕</button>
             </div>
           </div>))}
         </div>
-      </div>
+      </div>}
       {/* ── COL 3 : VUE PRINCIPALE ── */}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:T.bg}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 17px",borderBottom:"1px solid "+T.border,background:T.surface,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:9}}>
+            {/* Toggle buttons */}
+            <button onClick={()=>setShowCol1(p=>!p)} title={showCol1?"Cacher les dossiers":"Afficher les dossiers"} style={{width:28,height:28,borderRadius:5,border:"1px solid "+(showCol1?T.accentBorder:T.border),background:showCol1?T.accentBg:T.surface2,color:showCol1?T.accent:T.muted,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>📁</button>
+            <button onClick={()=>setShowCol2(p=>!p)} title={showCol2?"Cacher les items":"Afficher les items"} style={{width:28,height:28,borderRadius:5,border:"1px solid "+(showCol2?T.accentBorder:T.border),background:showCol2?T.accentBg:T.surface2,color:showCol2?T.accent:T.muted,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>⚗️</button>
+            <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
             <span style={{fontWeight:700,fontSize:14,color:T.text}}>{listName}</span>
             {craftItems.length>0&&<span style={{fontSize:11,color:T.muted,background:T.surface2,borderRadius:20,padding:"1px 7px",border:"1px solid "+T.border2}}>{craftItems.length} craft{craftItems.length!==1?"s":""}</span>}
           </div>
@@ -589,15 +595,15 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                   const showChildren=hasSubCraft&&!isSkipped;
                   return(
                     <div key={i}>
-                      <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 8px",marginLeft:depth*18,borderLeft:depth>0?"2px solid "+T.accentBorder:"none",marginBottom:2}}>
-                        {depth>0&&<span style={{fontSize:9,color:T.accentBorder,flexShrink:0}}>{"└"}</span>}
-                        <div style={{width:depth===0?34:26,height:depth===0?34:26,borderRadius:depth===0?7:5,background:complete?T.successBg:T.surface2,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":hasSubCraft&&!isSkipped?T.accentBorder:T.border),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,position:"relative"}}>
-                          {complete&&<div style={{position:"absolute",top:1,right:1,fontSize:7,color:T.success}}>✓</div>}
-                          {r.image_url?<img src={r.image_url} style={{width:depth===0?28:20,height:depth===0?28:20,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:depth===0?16:12}}>🌿</span>}
+                      <div style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",marginLeft:depth*20,borderLeft:depth>0?"2px solid "+T.accentBorder:"none",marginBottom:2}}>
+                        {depth>0&&<span style={{fontSize:10,color:T.accentBorder,flexShrink:0}}>{"└"}</span>}
+                        <div style={{width:depth===0?44:32,height:depth===0?44:32,borderRadius:depth===0?9:6,background:complete?T.successBg:T.surface2,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":hasSubCraft&&!isSkipped?T.accentBorder:T.border),display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,position:"relative"}}>
+                          {complete&&<div style={{position:"absolute",top:2,right:2,fontSize:8,color:T.success}}>✓</div>}
+                          {r.image_url?<img src={r.image_url} style={{width:depth===0?36:26,height:depth===0?36:26,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:depth===0?20:14}}>🌿</span>}
                         </div>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:depth===0?11:10,fontWeight:600,color:complete?T.success:showChildren?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-                          <div style={{fontSize:8,color:T.muted}}>{r.level?`Niv. ${r.level}`:""}{depth>0?(r.level?` · ×${total} nécess.`:`×${total} nécessaires`):""}</div>
+                          <div style={{fontSize:depth===0?13:11,fontWeight:600,color:complete?T.success:showChildren?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
+                          <div style={{fontSize:10,color:T.muted}}>{r.level?`Niv. ${r.level}`:""}{depth>0?(r.level?` · ×${total} nécess.`:`×${total} nécessaires`):""}</div>
                         </div>
                         {/* ── Toggle craft/acheter ── */}
                         {hasSubCraft&&(
@@ -631,7 +637,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                   return(
                   <div key={item.ankama_id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
                     <div onClick={toggleCollapse} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:isCollapsed?"none":"1px solid "+T.border2,background:T.panel,cursor:"pointer",userSelect:"none"}} onMouseEnter={e=>e.currentTarget.style.background=T.surface2} onMouseLeave={e=>e.currentTarget.style.background=T.panel}>
-                      <div style={{width:32,height:32,borderRadius:7,background:T.surface2,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>{item.image_url?<img src={item.image_url} style={{width:26,height:26,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:15}}>⚗️</span>}</div>
+                      <div style={{width:42,height:42,borderRadius:8,background:T.surface2,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>{item.image_url?<img src={item.image_url} style={{width:34,height:34,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:18}}>⚗️</span>}</div>
                       <div style={{flex:1}}><span style={{fontWeight:700,fontSize:13,color:T.text}}>{item.name}</span>{item.level&&<span style={{marginLeft:6,fontSize:10,color:T.muted}}>Niv. {item.level}</span>}</div>
                       {item.job&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:5,background:T.surface2,color:T.textSub,border:"1px solid "+T.border2}}>{item.job}</span>}
                       <span style={{fontSize:11,color:T.accent,fontWeight:700,background:T.accentBg,borderRadius:6,padding:"2px 8px",border:"1px solid "+T.accentBorder}}>×{qty}</span>
@@ -642,18 +648,18 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                     {!isCollapsed&&(subCraftsEnabled&&tree?(
                       tree.length>0?(<div style={{padding:"11px 13px"}}>{renderNodes(tree,0)}</div>):(<div style={{padding:"11px 13px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette connue</div>)
                     ):(
-                      item.recipe?.length>0?(<div style={{padding:"11px 13px",display:"flex",flexWrap:"wrap",gap:7}}>
-                      {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:108,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:9,background:complete?T.successBg:T.surface2,padding:"7px 5px",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s",position:"relative"}}>
+                      item.recipe?.length>0?(<div style={{padding:"13px 15px",display:"flex",flexWrap:"wrap",gap:10}}>
+                      {item.recipe.map((r,i)=>{const total=r.quantity*qty;const key=r.ankama_id??r.name;const inBanque=bv(key);const complete=inBanque>=total;return(<div key={i} style={{width:130,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:10,background:complete?T.successBg:T.surface2,padding:"10px 7px",display:"flex",flexDirection:"column",alignItems:"center",gap:5,transition:"all 0.15s",position:"relative"}}>
                         {/* Checkbox bouton MAX */}
-                        <div onClick={()=>setBanque(b=>({...b,[key]:complete?0:total}))} title={complete?"Retirer":"J'ai tout"} style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
-                          {complete&&<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        <div onClick={()=>setBanque(b=>({...b,[key]:complete?0:total}))} title={complete?"Retirer":"J'ai tout"} style={{position:"absolute",top:6,right:6,width:18,height:18,borderRadius:4,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
+                          {complete&&<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                        <div style={{width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:30,height:30,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:19}}>🌿</span>}</div>
-                        <div style={{fontSize:10,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.25,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
-                        <div style={{fontSize:9,color:T.muted,textAlign:"center",minHeight:11}}>{r.level?`Niv. ${r.level}`:"ressource"}</div>
-                        <div style={{display:"flex",alignItems:"center",gap:3,marginTop:1}}>
-                          <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:42,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"3px 3px",color:complete?T.success:T.text,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
-                          <span style={{fontSize:10,color:T.muted}}>/{total}</span>
+                        <div style={{width:52,height:52,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.image_url?<img src={r.image_url} style={{width:48,height:48,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:28}}>🌿</span>}</div>
+                        <div style={{fontSize:11,fontWeight:600,color:complete?T.success:T.text,textAlign:"center",lineHeight:1.3,width:"100%",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{r.name}</div>
+                        <div style={{fontSize:10,color:T.muted,textAlign:"center"}}>{r.level?`Niv. ${r.level}`:"ressource"}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:4,marginTop:1}}>
+                          <input type="number" min={0} value={banque[key]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[key]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:48,background:T.surface,border:"1px solid "+(complete?"rgba(34,197,94,0.4)":T.border),borderRadius:5,padding:"4px 3px",color:complete?T.success:T.text,fontSize:12,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
+                          <span style={{fontSize:11,color:T.muted}}>/{total}</span>
                         </div>
                       </div>);})}
                       </div>):(<div style={{padding:"12px 15px",fontSize:11,color:T.muted,fontStyle:"italic"}}>Aucune recette dans la BDD</div>)
@@ -666,7 +672,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
           ):(
             ingredients.length===0?(<div style={{textAlign:"center",padding:"36px",color:T.muted,fontSize:13}}>Aucun ingrédient</div>):(
               <div style={{background:T.surface,border:"1px solid "+T.border,borderRadius:11,overflow:"hidden"}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",background:T.panel,borderBottom:"1px solid "+T.border,alignItems:"center"}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 130px 85px",padding:"8px 15px",background:T.panel,borderBottom:"1px solid "+T.border,alignItems:"center"}}>
                   <div style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700}}>Ressource</div>
                   <div style={{textAlign:"center"}}>
                     <button onClick={()=>setSortOrder(s=>s==="asc"?"desc":s==="desc"?null:"asc")} style={{fontSize:9,color:sortOrder?T.accent:T.muted,background:sortOrder?T.accentBg:T.surface2,border:"1px solid "+(sortOrder?T.accentBorder:T.border2),borderRadius:4,padding:"2px 6px",cursor:"pointer",fontFamily:T.font,fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>
@@ -676,22 +682,22 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
                   {["Nécessaire","En banque 🏦","Reste"].map((h)=>(<div key={h} style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:"center"}}>{h}</div>))}
                 </div>
                 <div>
-                  {ingredients.map((ing,i)=>{const k=ing.key;const inBanque=bv(k);const reste=Math.max(0,ing.qty-inBanque);const complete=reste===0;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",borderBottom:"1px solid "+T.border2,alignItems:"center",background:complete?T.successBg:"transparent"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}><div style={{width:24,height:24,borderRadius:5,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{ing.image_url?<img src={ing.image_url} style={{width:18,height:18,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:10}}>🌿</span>}</div><span style={{fontSize:12,color:complete?T.success:T.text,fontWeight:complete?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ing.name}</span>{complete&&<span style={{fontSize:11,color:T.success}}>✓</span>}</div>
-                    <div style={{textAlign:"center"}}>{ing.level?<span style={{fontSize:10,fontWeight:700,color:T.textSub,background:T.surface2,border:"1px solid "+T.border2,borderRadius:4,padding:"1px 5px"}}>{ing.level}</span>:<span style={{fontSize:9,color:T.muted}}>—</span>}</div>
-                    <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:5,padding:"2px 9px"}}>{ing.qty}</span></div>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
-                      <div onClick={()=>setBanque(b=>({...b,[k]:complete?0:ing.qty}))} title={complete?"Retirer":"J'ai tout"} style={{width:16,height:16,borderRadius:3,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border2),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
-                        {complete&&<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {ingredients.map((ing,i)=>{const k=ing.key;const inBanque=bv(k);const reste=Math.max(0,ing.qty-inBanque);const complete=reste===0;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 130px 85px",padding:"10px 15px",borderBottom:"1px solid "+T.border2,alignItems:"center",background:complete?T.successBg:"transparent"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:9,minWidth:0}}><div style={{width:40,height:40,borderRadius:7,background:T.surface2,border:"1px solid "+T.border2,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>{ing.image_url?<img src={ing.image_url} style={{width:32,height:32,objectFit:"contain",imageRendering:"pixelated"}} onError={e=>e.target.style.display="none"} alt=""/>:<span style={{fontSize:16}}>🌿</span>}</div><span style={{fontSize:13,color:complete?T.success:T.text,fontWeight:complete?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ing.name}</span>{complete&&<span style={{fontSize:13,color:T.success}}>✓</span>}</div>
+                    <div style={{textAlign:"center"}}>{ing.level?<span style={{fontSize:11,fontWeight:700,color:T.textSub,background:T.surface2,border:"1px solid "+T.border2,borderRadius:4,padding:"2px 6px"}}>{ing.level}</span>:<span style={{fontSize:10,color:T.muted}}>—</span>}</div>
+                    <div style={{textAlign:"center"}}><span style={{fontSize:13,fontWeight:700,color:T.accent,background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:5,padding:"3px 10px"}}>{ing.qty}</span></div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                      <div onClick={()=>setBanque(b=>({...b,[k]:complete?0:ing.qty}))} title={complete?"Retirer":"J'ai tout"} style={{width:20,height:20,borderRadius:4,border:"2px solid "+(complete?"rgba(34,197,94,0.8)":T.border2),background:complete?"rgba(34,197,94,0.25)":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>
+                        {complete&&<svg width="11" height="11" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </div>
-                      <button onClick={()=>setBanque(b=>({...b,[k]:Math.max(0,bv(k)-1)}))} style={{width:18,height:18,borderRadius:4,border:"1px solid "+T.border2,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                      <input type="number" min={0} value={banque[k]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[k]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:44,background:T.surface2,border:"1px solid "+(inBanque>0?"rgba(34,197,94,0.35)":T.border2),borderRadius:5,padding:"3px 3px",color:inBanque>0?T.success:T.muted,fontSize:11,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
-                      <button onClick={()=>setBanque(b=>({...b,[k]:bv(k)+1}))} style={{width:18,height:18,borderRadius:4,border:"1px solid rgba(34,197,94,0.3)",background:T.successBg,color:T.success,cursor:"pointer",fontFamily:T.font,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                      <button onClick={()=>setBanque(b=>({...b,[k]:Math.max(0,bv(k)-1)}))} style={{width:22,height:22,borderRadius:4,border:"1px solid "+T.border2,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                      <input type="number" min={0} value={banque[k]??""} placeholder="0" onChange={e=>setBanque(b=>({...b,[k]:Math.max(0,parseInt(e.target.value)||0)}))} style={{width:50,background:T.surface2,border:"1px solid "+(inBanque>0?"rgba(34,197,94,0.35)":T.border2),borderRadius:5,padding:"4px 3px",color:inBanque>0?T.success:T.muted,fontSize:13,fontWeight:700,outline:"none",fontFamily:T.font,textAlign:"center",boxSizing:"border-box"}} />
+                      <button onClick={()=>setBanque(b=>({...b,[k]:bv(k)+1}))} style={{width:22,height:22,borderRadius:4,border:"1px solid rgba(34,197,94,0.3)",background:T.successBg,color:T.success,cursor:"pointer",fontFamily:T.font,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                     </div>
-                    <div style={{textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:complete?T.success:reste<=ing.qty*0.3?"#f59e0b":T.danger,background:complete?T.successBg:reste<=ing.qty*0.3?"rgba(245,158,11,0.1)":T.dangerBg,border:"1px solid "+(complete?"rgba(34,197,94,0.3)":reste<=ing.qty*0.3?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"),borderRadius:5,padding:"2px 9px"}}>{complete?"✓":reste}</span></div>
+                    <div style={{textAlign:"center"}}><span style={{fontSize:13,fontWeight:700,color:complete?T.success:reste<=ing.qty*0.3?"#f59e0b":T.danger,background:complete?T.successBg:reste<=ing.qty*0.3?"rgba(245,158,11,0.1)":T.dangerBg,border:"1px solid "+(complete?"rgba(34,197,94,0.3)":reste<=ing.qty*0.3?"rgba(245,158,11,0.3)":"rgba(239,68,68,0.3)"),borderRadius:5,padding:"3px 10px"}}>{complete?"✓":reste}</span></div>
                   </div>);})}
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 115px 85px",padding:"8px 15px",background:T.panel,borderTop:"1px solid "+T.border}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 130px 85px",padding:"8px 15px",background:T.panel,borderTop:"1px solid "+T.border}}>
                   <div style={{fontSize:10,color:T.muted,display:"flex",alignItems:"center",gap:4}}><span style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:4,padding:"1px 6px",color:T.accent,fontWeight:700,fontSize:10}}>{ingredients.filter(i=>bv(i.key)>=i.qty).length}/{ingredients.length}</span>complètes</div>
                   <div/>
                   <div style={{textAlign:"center"}}><span style={{fontSize:11,fontWeight:700,color:T.accent}}>{ingredients.reduce((s,i)=>s+i.qty,0)}</span></div>
