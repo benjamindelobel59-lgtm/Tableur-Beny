@@ -256,7 +256,7 @@ function WebhooksTab({ session }) {
 }
 
 // ─── PARTAGES TAB ─────────────────────────────────────────────
-function PartagesTab({ session, characters, showToast }) {
+function PartagesTab({ session, characters, showToast, onOpenSharedCraft }) {
   const T=useT();const fi=makeFi(T);
   const [myShares,setMyShares]=useState([]);const [receivedShares,setReceivedShares]=useState([]);
   const [showModal,setShowModal]=useState(false);const [viewShare,setViewShare]=useState(null);
@@ -268,30 +268,32 @@ function PartagesTab({ session, characters, showToast }) {
   const loadReceivedShares=async()=>{const{data}=await supabase.from("shares").select("*").eq("shared_with_email",session.user.email).order("created_at",{ascending:false});if(data)setReceivedShares(data);};
   const createShare=async()=>{if(!shareEmail.trim())return showToast("Email requis !","err");if(shareEmail.trim().toLowerCase()===session.user.email.toLowerCase())return showToast("Tu ne peux pas te partager !","err");if(shareType==="compte"&&!shareCompte)return showToast("Choisis un compte !","err");setSaving(true);const{error}=await supabase.from("shares").insert([{owner_id:session.user.id,owner_email:session.user.email,shared_with_email:shareEmail.trim().toLowerCase(),share_type:shareType,compte_name:shareType==="compte"?shareCompte:null,can_edit:canEdit}]);setSaving(false);if(error)return showToast("Erreur : "+error.message,"err");showToast("Partage créé ✓");setShowModal(false);setShareEmail("");setShareType("all");setShareCompte("");setCanEdit(false);loadMyShares();};
   const deleteShare=async(id)=>{await supabase.from("shares").delete().eq("id",id);showToast("Partage supprimé");loadMyShares();};
-  const openReceivedShare=async(share)=>{setViewShare(share);setViewChars([]);setViewCraftLists([]);setViewLoading(true);if(share.share_type==="craft"){const{data}=await supabase.from("craft_lists").select("*").eq("user_id",share.owner_id).order("created_at",{ascending:false});setViewCraftLists(data||[]);}else{let q=supabase.from("characters").select("*").eq("user_id",share.owner_id);if(share.share_type==="compte")q=q.eq("compte",share.compte_name);const{data}=await q.order("created_at",{ascending:true});setViewChars(data||[]);}setViewLoading(false);};
+  const openReceivedShare=async(share)=>{
+    if(share.share_type==="craft"){
+      // Charger les listes et naviguer directement vers l'atelier
+      setViewLoading(true);
+      const{data}=await supabase.from("craft_lists").select("*").eq("user_id",share.owner_id).order("created_at",{ascending:false});
+      setViewLoading(false);
+      onOpenSharedCraft(data||[],share.owner_email,share.can_edit);
+    } else {
+      setViewShare(share);setViewChars([]);setViewLoading(true);
+      let q=supabase.from("characters").select("*").eq("user_id",share.owner_id);
+      if(share.share_type==="compte")q=q.eq("compte",share.compte_name);
+      const{data}=await q.order("created_at",{ascending:true});
+      setViewChars(data||[]);setViewLoading(false);
+    }
+  };
   const card={background:T.surface,border:"1px solid "+T.border,borderRadius:12};
   const ShareTypeBtn=({id})=>{const t=SHARE_TYPE_LABELS[id];const active=shareType===id;return<button onClick={()=>setShareType(id)} style={{flex:1,padding:"10px 6px",borderRadius:9,border:"2px solid "+(active?T.accent:T.border),background:active?T.accentBg:T.surface2,color:active?T.accent:T.muted,cursor:"pointer",fontFamily:T.font,fontSize:11,fontWeight:active?700:400,textAlign:"center"}}><div style={{fontSize:17,marginBottom:2}}>{t.icon}</div><div style={{fontSize:10,lineHeight:1.3}}>{t.label}</div></button>;};
   if(viewShare){
-    const typeInfo=SHARE_TYPE_LABELS[viewShare.share_type];const isCraft=viewShare.share_type==="craft";
+    const typeInfo=SHARE_TYPE_LABELS[viewShare.share_type];
     return(<div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
         <button onClick={()=>setViewShare(null)} style={{background:T.surface2,border:"1px solid "+T.border,borderRadius:8,padding:"6px 12px",color:T.textSub,cursor:"pointer",fontFamily:T.font,fontSize:12}}>← Retour</button>
         <div><div style={{fontWeight:700,fontSize:15,color:T.text}}>{typeInfo.icon} {viewShare.share_type==="compte"?`Compte "${viewShare.compte_name}"`:typeInfo.label}</div><div style={{fontSize:11,color:T.muted,marginTop:1}}>Partagé par <span style={{color:T.accent}}>{viewShare.owner_email}</span></div></div>
       </div>
       {viewLoading?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>⏳ Chargement...</div>
-      :isCraft?(viewCraftLists.length===0?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>⚗️ Aucune liste</div>:
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {viewCraftLists.map(list=>{const items=list.items||[];const ingMap={};for(const{item,qty}of items)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!ingMap[k])ingMap[k]={name:r.name,image_url:r.image_url,qty:0};ingMap[k].qty+=r.quantity*qty;}const ings=Object.values(ingMap).sort((a,b)=>a.name.localeCompare(b.name));return(
-            <div key={list.id} style={{...card,overflow:"hidden"}}>
-              <div style={{padding:"12px 15px",borderBottom:"1px solid "+T.border,display:"flex",alignItems:"center",gap:9}}><span style={{fontSize:19}}>⚗️</span><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.text}}>{list.name}</div><div style={{fontSize:11,color:T.muted}}>{items.length} item{items.length!==1?"s":""}</div></div></div>
-              <div style={{padding:"12px 15px"}}>
-                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:ings.length?11:0}}>{items.map(({item,qty})=>(<div key={item.ankama_id} style={{display:"flex",alignItems:"center",gap:6,background:T.surface2,borderRadius:7,padding:"5px 9px",border:"1px solid "+T.border2}}>{item.image_url?<img src={item.image_url} style={{width:18,height:18,objectFit:"contain",imageRendering:"pixelated"}} alt="" onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:13}}>⚗️</span>}<span style={{fontSize:12,color:T.text,fontWeight:500}}>{item.name}</span><span style={{fontSize:11,color:T.accent,fontWeight:700,background:T.accentBg,borderRadius:4,padding:"0 5px"}}>×{qty}</span></div>))}</div>
-                {ings.length>0&&<div style={{background:T.surface2,borderRadius:9,border:"1px solid "+T.border2,overflow:"hidden"}}><div style={{padding:"6px 12px",borderBottom:"1px solid "+T.border2,fontSize:10,color:T.accent,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>🧮 Ressources</div><div style={{maxHeight:170,overflowY:"auto"}}>{ings.map((ing,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 12px",borderBottom:"1px solid "+T.border2+"55"}}><div style={{width:20,height:20,borderRadius:5,background:T.surface,border:"1px solid "+T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{ing.image_url?<img src={ing.image_url} style={{width:15,height:15,objectFit:"contain",imageRendering:"pixelated"}} alt="" onError={e=>e.target.style.display="none"}/>:<span style={{fontSize:10}}>🌿</span>}</div><span style={{flex:1,fontSize:12,color:T.text}}>{ing.name}</span><span style={{fontSize:12,fontWeight:700,color:T.accent,background:T.accentBg,borderRadius:5,padding:"1px 7px"}}>{ing.qty}</span></div>))}</div></div>}
-              </div>
-            </div>
-          );})}
-        </div>
-      ):(viewChars.length===0?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>🗡️ Aucun personnage</div>:
+      :(viewChars.length===0?<div style={{textAlign:"center",padding:"60px",color:T.muted}}>🗡️ Aucun personnage</div>:
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:9}}>
           {viewChars.map(char=>{const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;return(
             <div key={char.id} style={{...card,overflow:"hidden"}}>
@@ -315,7 +317,7 @@ function PartagesTab({ session, characters, showToast }) {
         </div>
         <div>
           <div style={{marginBottom:12}}><div style={{fontWeight:700,fontSize:15,color:T.text}}>📥 Partagé avec moi</div><div style={{fontSize:11,color:T.muted,marginTop:1}}>Ce que tu as reçu</div></div>
-          {receivedShares.length===0?(<div style={{...card,padding:"36px 18px",textAlign:"center"}}><div style={{fontSize:26,marginBottom:7}}>📭</div><div style={{color:T.muted,fontSize:13}}>Rien pour l'instant</div></div>):(<div style={{display:"flex",flexDirection:"column",gap:7}}>{receivedShares.map(s=>{const t=SHARE_TYPE_LABELS[s.share_type];return(<div key={s.id} style={{...card,padding:"11px 13px",display:"flex",alignItems:"center",gap:11}}><div style={{width:32,height:32,borderRadius:8,background:T.successBg,border:"1px solid rgba(34,197,94,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>{t.icon}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div><div style={{fontSize:10,color:T.muted,marginTop:1}}>De <span style={{color:T.success}}>{s.owner_email}</span></div></div><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}><span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:s.can_edit?T.successBg:T.accentBg,color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modif":"👁️ Lecture"}</span><button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 7px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>{s.share_type==="craft"?"⚗️ Voir":"Voir"}</button></div></div>);})}</div>)}
+          {receivedShares.length===0?(<div style={{...card,padding:"36px 18px",textAlign:"center"}}><div style={{fontSize:26,marginBottom:7}}>📭</div><div style={{color:T.muted,fontSize:13}}>Rien pour l'instant</div></div>):(<div style={{display:"flex",flexDirection:"column",gap:7}}>{receivedShares.map(s=>{const t=SHARE_TYPE_LABELS[s.share_type];return(<div key={s.id} style={{...card,padding:"11px 13px",display:"flex",alignItems:"center",gap:11}}><div style={{width:32,height:32,borderRadius:8,background:T.successBg,border:"1px solid rgba(34,197,94,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>{t.icon}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:T.text}}>{s.share_type==="compte"?`Compte "${s.compte_name}"`:t.label}</div><div style={{fontSize:10,color:T.muted,marginTop:1}}>De <span style={{color:T.success}}>{s.owner_email}</span></div></div><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}><span style={{fontSize:9,padding:"2px 6px",borderRadius:20,background:s.can_edit?T.successBg:T.accentBg,color:s.can_edit?T.success:T.accent,fontWeight:600}}>{s.can_edit?"✏️ Modif":"👁️ Lecture"}</span><button onClick={()=>openReceivedShare(s)} style={{background:T.accentBg,border:"1px solid "+T.accentBorder,borderRadius:6,padding:"2px 7px",color:T.accent,cursor:"pointer",fontSize:10,fontFamily:T.font}}>{viewLoading?"⏳...":s.share_type==="craft"?"⚗️ Ouvrir l'atelier":"Voir"}</button></div></div>);})}</div>)}
         </div>
       </div>
       {showModal&&(
@@ -336,7 +338,7 @@ function PartagesTab({ session, characters, showToast }) {
 }
 
 // ─── CRAFT TAB ────────────────────────────────────────────────
-function CraftTab({ session, externalItems, onExternalConsumed }) {
+function CraftTab({ session, externalItems, onExternalConsumed, sharedCraftLists, sharedCraftOwner, sharedCraftCanEdit, onClearShared }) {
   const T=useT();const fi=makeFi(T);
   const [query,setQuery]=useState("");const [searchType,setSearchType]=useState("equipment");const [results,setResults]=useState([]);const [searching,setSearching]=useState(false);const [craftView,setCraftView]=useState("par_craft");
   const lsKey=`craft_session_v2_${session.user.id}`;const lsBanqKey=`craft_banque_${session.user.id}`;const lsNameKey=`craft_name_${session.user.id}`;
@@ -503,6 +505,7 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
           <span style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Dossiers</span>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"5px 7px"}}>
+          {/* ── Mes dossiers ── */}
           <div onClick={()=>{if(updateId){setActiveList(null);setUpdateId(null);}}} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:7,background:!activeList?T.accentBg:T.surface,border:"1px solid "+(!activeList?T.accentBorder:T.border2),cursor:"pointer",marginBottom:3,transition:"all 0.15s"}}>
             <span style={{fontSize:13}}>📁</span>
             <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:!activeList?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{listName}</div><div style={{fontSize:9,color:T.muted}}>{craftItems.length} craft{craftItems.length!==1?"s":""}</div></div>
@@ -512,6 +515,21 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
             <div style={{flex:1,minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:isAct?T.accent:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{list.name}</div><div style={{fontSize:9,color:T.muted}}>{(list.items||[]).length} craft{(list.items||[]).length!==1?"s":""}</div></div>
             <button onClick={e=>{e.stopPropagation();setDeleteId(list.id);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,padding:1,flexShrink:0,opacity:0.55}}>✕</button>
           </div>);})}
+          {/* ── Dossiers partagés ── */}
+          {sharedCraftLists&&sharedCraftLists.length>0&&(<>
+            <div style={{padding:"8px 9px 4px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{fontSize:9,color:T.success,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>🔗 Partagés</span>
+              <button onClick={()=>{onClearShared&&onClearShared();}} title="Fermer les partagés" style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,padding:0,opacity:0.6}}>✕</button>
+            </div>
+            <div style={{marginBottom:4,padding:"3px 9px",fontSize:9,color:T.muted,fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>de {sharedCraftOwner}</div>
+            {sharedCraftLists.map(list=>{const isAct=activeList?.id===("shared_"+list.id);return(<div key={"sh_"+list.id} onClick={()=>{setActiveList({...list,id:"shared_"+list.id,_shared:true,_readOnly:!sharedCraftCanEdit});setCraftItems(list.items||[]);setListName(list.name);setUpdateId(null);if(list.banque)setBanque(list.banque);showToast(`"${list.name}" chargée ✓`);}} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",borderRadius:7,background:isAct?T.successBg:T.surface,border:"1px solid "+(isAct?"rgba(34,197,94,0.4)":T.border2),cursor:"pointer",marginBottom:3,transition:"all 0.15s"}}>
+              <span style={{fontSize:13}}>📂</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,fontWeight:600,color:isAct?T.success:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{list.name}</div>
+                <div style={{fontSize:9,color:T.muted,display:"flex",alignItems:"center",gap:3}}>{(list.items||[]).length} craft · <span style={{color:sharedCraftCanEdit?T.success:T.muted}}>{sharedCraftCanEdit?"✏️":"👁️"}</span></div>
+              </div>
+            </div>);})}
+          </>)}
         </div>
       </div>}
       {/* ── COL 2 : AJOUTER + LISTE ── */}
@@ -569,9 +587,11 @@ function CraftTab({ session, externalItems, onExternalConsumed }) {
             <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
             <span style={{fontWeight:700,fontSize:14,color:T.text}}>{listName}</span>
             {craftItems.length>0&&<span style={{fontSize:11,color:T.muted,background:T.surface2,borderRadius:20,padding:"1px 7px",border:"1px solid "+T.border2}}>{craftItems.length} craft{craftItems.length!==1?"s":""}</span>}
+            {activeList?._shared&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,background:sharedCraftCanEdit?T.successBg:"rgba(99,102,241,0.1)",color:sharedCraftCanEdit?T.success:"#818cf8",border:"1px solid "+(sharedCraftCanEdit?"rgba(34,197,94,0.3)":"rgba(129,140,248,0.3)")}}>{sharedCraftCanEdit?"✏️ Partagé (modif)":"👁️ Partagé (lecture)"}</span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {craftView==="total"&&ingredients.length>0&&<button onClick={()=>setBanque({})} style={{fontSize:11,padding:"4px 9px",borderRadius:6,border:"1px solid "+T.border,background:T.surface2,color:T.muted,cursor:"pointer",fontFamily:T.font}}>Réinit. banque</button>}
+            {!(activeList?._shared&&!sharedCraftCanEdit)&&<button onClick={openSaveModal} style={{fontSize:11,padding:"4px 11px",borderRadius:6,border:"1px solid "+T.accentBorder,background:T.accentBg,color:T.accent,cursor:"pointer",fontFamily:T.font,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>💾 Sauvegarder</button>}
             <button onClick={toggleSubCrafts} disabled={resolvingSubCrafts||craftItems.length===0} style={{fontSize:11,padding:"4px 11px",borderRadius:6,border:"1px solid "+(subCraftsEnabled?T.accentBorder:T.border),background:subCraftsEnabled?T.accentBg:T.surface2,color:subCraftsEnabled?T.accent:craftItems.length===0?T.muted+"55":T.muted,cursor:resolvingSubCrafts||craftItems.length===0?"not-allowed":"pointer",fontFamily:T.font,fontWeight:subCraftsEnabled?700:400,display:"flex",alignItems:"center",gap:4,opacity:craftItems.length===0?0.5:1}}>{resolvingSubCrafts?"⏳ Calcul...":"⚗️ Sous-crafts"}{subCraftsEnabled&&!resolvingSubCrafts&&<span style={{fontSize:9,background:T.accent,color:"#fff",borderRadius:10,padding:"1px 5px",fontWeight:700}}>ON</span>}</button>
             <div style={{display:"flex",background:T.surface2,borderRadius:7,padding:3,border:"1px solid "+T.border2}}>
               {[["par_craft","Par craft"],["total","Total global"]].map(([id,label])=>(<button key={id} onClick={()=>setCraftView(id)} style={{padding:"5px 11px",borderRadius:5,border:"none",background:craftView===id?T.accent:"transparent",color:craftView===id?"#fff":T.muted,fontWeight:craftView===id?700:400,cursor:"pointer",fontFamily:T.font,fontSize:12,transition:"all 0.15s"}}>{label}</button>))}
@@ -1243,6 +1263,7 @@ function AppInner({ themeId, setTheme }) {
   const [showForm,setShowForm]=useState(false);const [editingChar,setEditingChar]=useState(null);const [form,setForm]=useState(defaultChar());
   const [toast,setToast]=useState(null);const [deleteConfirm,setDeleteConfirm]=useState(null);const [shareCount,setShareCount]=useState(0);const [craftExternalItems,setCraftExternalItems]=useState(null);
   const [showThemePicker,setShowThemePicker]=useState(false);const themePickerRef=useRef(null);
+  const [sharedCraftLists,setSharedCraftLists]=useState(null);const [sharedCraftOwner,setSharedCraftOwner]=useState(null);const [sharedCraftCanEdit,setSharedCraftCanEdit]=useState(false);
   useEffect(()=>{if(!showThemePicker)return;const h=(e)=>{if(themePickerRef.current&&!themePickerRef.current.contains(e.target))setShowThemePicker(false);};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[showThemePicker]);
   useEffect(()=>{supabase.auth.getSession().then(({data:{session}})=>{setSession(session);setAuthLoading(false);});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return()=>subscription.unsubscribe();},[]);
   useEffect(()=>{if(session){loadCharacters();loadShareCount();}},[session]);
@@ -1327,9 +1348,9 @@ function AppInner({ themeId, setTheme }) {
         </div>
       </div>
       {mainTab==="build"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><BuildTab session={session} onSendToAtelier={items=>{setCraftExternalItems(items);setMainTab("craft");}}/></div>}
-      {mainTab==="partages"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><PartagesTab session={session} characters={characters} showToast={showToast}/></div>}
+      {mainTab==="partages"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><PartagesTab session={session} characters={characters} showToast={showToast} onOpenSharedCraft={(lists,owner,canEdit)=>{setSharedCraftLists(lists);setSharedCraftOwner(owner);setSharedCraftCanEdit(canEdit);setMainTab("craft");}}/></div>}
       {mainTab==="webhooks"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"18px 20px"}}><WebhooksTab session={session}/></div>}
-      {mainTab==="craft"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><CraftTab session={session} externalItems={craftExternalItems} onExternalConsumed={()=>setCraftExternalItems(null)}/></div>}
+      {mainTab==="craft"&&<div style={{maxWidth:1500,margin:"0 auto",padding:"14px 20px"}}><CraftTab session={session} externalItems={craftExternalItems} onExternalConsumed={()=>setCraftExternalItems(null)} sharedCraftLists={sharedCraftLists} sharedCraftOwner={sharedCraftOwner} sharedCraftCanEdit={sharedCraftCanEdit} onClearShared={()=>{setSharedCraftLists(null);setSharedCraftOwner(null);setSharedCraftCanEdit(false);}}/></div>}
       <div style={{maxWidth:1500,margin:"0 auto",display:mainTab==="persos"?"block":"none",padding:"14px 20px"}}>
         {/* Surcat filters */}
         <div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>{surcats.map(sc=><TabBtn key={sc.id} active={activeSurcat===sc.id} color={sc.color} onClick={()=>{setActiveSurcat(sc.id);setActiveTab("all");}} icon={sc.icon} label={sc.label} count={countSurcat(sc)}/>)}</div>
