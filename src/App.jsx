@@ -1309,7 +1309,9 @@ function AppInner({ themeId, setTheme }) {
   const surcats=[{id:"all",label:"Tous",icon:"⚔️",color:"#6b7280"},{id:"PVP",label:"PVP",icon:"🏆",color:T.pvp},{id:"PVM",label:"PVM",icon:"🐉",color:T.pvm}];
   const countSurcat=(sc)=>sc.id==="all"?characters.length:characters.filter(c=>(c.surcat||"PVM")===sc.id).length;
   const countFor=(cat)=>{const base=activeSurcat==="all"?characters:characters.filter(c=>(c.surcat||"PVM")===activeSurcat);return cat.etats?base.filter(c=>cat.etats.includes(c.etat)).length:base.length;};
-  const filtered=characters.filter(c=>{const inSurcat=activeSurcat==="all"||(c.surcat||"PVM")===activeSurcat;const cat=CATEGORIES.find(cat=>cat.id===activeTab);const inTab=activeTab==="all"||(cat?.etats&&cat.etats.includes(c.etat));const s=search.toLowerCase();return inSurcat&&inTab&&(c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s))&&(filterCompte==="Tous"||c.compte===filterCompte);}).sort((a,b)=>{if(sortBy==="compte")return(a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");if(sortBy==="level")return b.level-a.level;if(sortBy==="nom")return(a.nom||"").localeCompare(b.nom||"");return(a.classe||"").localeCompare(b.classe||"");});
+  const filtered=[...characters.filter(c=>{const inSurcat=activeSurcat==="all"||(c.surcat||"PVM")===activeSurcat;const cat=CATEGORIES.find(cat=>cat.id===activeTab);const inTab=activeTab==="all"||(cat?.etats&&cat.etats.includes(c.etat));const s=search.toLowerCase();return inSurcat&&inTab&&(c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s))&&(filterCompte==="Tous"||c.compte===filterCompte);}),
+    ...sharedChars.filter(c=>{const inSurcat=activeSurcat==="all"||(c.surcat||"PVM")===activeSurcat;const cat=CATEGORIES.find(cat=>cat.id===activeTab);const inTab=activeTab==="all"||(cat?.etats&&cat.etats.includes(c.etat));const s=search.toLowerCase();return inSurcat&&inTab&&(c.nom.toLowerCase().includes(s)||c.compte.toLowerCase().includes(s)||c.classe.toLowerCase().includes(s));})
+  ].sort((a,b)=>{if(sortBy==="compte")return(a.compte||"").localeCompare(b.compte||"")||(a.nom||"").localeCompare(b.nom||"");if(sortBy==="level")return b.level-a.level;if(sortBy==="nom")return(a.nom||"").localeCompare(b.nom||"");return(a.classe||"").localeCompare(b.classe||"");});
   const TabBtn=({active,color,onClick,icon,label,count})=>(<button onClick={onClick} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:3,border:"1px solid "+(active?color+"44":T.border2),background:active?color+"12":T.surface,color:active?color:T.muted,cursor:"pointer",fontWeight:700,fontSize:11,transition:"all 0.15s",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1,textTransform:"uppercase"}}><span style={{fontSize:12}}>{icon}</span><span>{label}</span><span style={{background:active?color+"22":T.surface2,color:active?color:T.muted,borderRadius:2,padding:"0 5px",fontSize:10,fontWeight:700,minWidth:16,textAlign:"center"}}>{count}</span></button>);
   const MAIN_TABS=[{id:"persos",icon:"⚔️",label:"PERSONNAGES"},{id:"craft",icon:"⚗️",label:"ATELIER CRAFT"},{id:"build",icon:"🏗️",label:"BUILD"},{id:"partages",icon:"🔗",label:"PARTAGES",badge:shareCount},{id:"webhooks",icon:"🔔",label:"WEBHOOKS"}];
   return (
@@ -1389,45 +1391,47 @@ function AppInner({ themeId, setTheme }) {
         {loading?(<div style={{textAlign:"center",padding:"70px",color:T.muted}}><div style={{width:40,height:2,background:T.accent,margin:"0 auto 14px"}}></div><div style={{fontSize:11,letterSpacing:4,fontFamily:"'Rajdhani',sans-serif",textTransform:"uppercase"}}>Chargement...</div></div>)
         :filtered.length===0?(<div style={{textAlign:"center",padding:"70px 18px",color:T.muted}}><div style={{fontSize:40,marginBottom:9,opacity:0.15}}>🗡️</div><div style={{fontSize:14,fontWeight:700,color:T.textSub,marginBottom:5,fontFamily:"'Rajdhani',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>{characters.length===0?"Aucun personnage":"Aucun résultat"}</div><div style={{fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>{characters.length===0?"Ajoutez votre premier personnage":"Modifiez vos filtres"}</div></div>)
         :(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(285px,1fr))",gap:8}}>
-          {filtered.map(char=>{const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;const sc=surcats.find(s=>s.id===(char.surcat||"PVM"))||surcats[2];return(
-            <div key={char.id} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:3,overflow:"hidden",boxShadow:T.shadow,transition:"border-color .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=catColor+"55"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-              {/* Top colored line */}
+          {filtered.map(char=>{
+            const isShared=!!char._shared;const canEdit=!isShared||char._canEdit;
+            const catColor=CATEGORIES.find(cat=>cat.etats?.includes(char.etat))?.color||T.accent;const sc=surcats.find(s=>s.id===(char.surcat||"PVM"))||surcats[2];
+            const borderCol=isShared?"rgba(59,130,246,0.3)":T.border;
+            return(
+            <div key={(isShared?"sh_":"")+char.id} style={{background:T.surface,border:"1px solid "+borderCol,borderRadius:3,overflow:"hidden",boxShadow:T.shadow,transition:"border-color .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=isShared?"rgba(59,130,246,0.55)":catColor+"55"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=borderCol}>
               <div style={{height:2,background:catColor}}/>
               <div style={{padding:"10px 12px"}}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:8}}>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
                     <div style={{width:36,height:36,borderRadius:3,background:catColor+"10",border:"1px solid "+catColor+"20",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><img src={CLASS_ICONS[char.classe]} style={{width:28,height:28,objectFit:"contain"}} alt={char.classe} onError={e=>e.target.style.display="none"}/></div>
                     <div>
-                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2,flexWrap:"wrap"}}>
                         <span style={{fontWeight:700,fontSize:14,color:T.text,fontFamily:"'Rajdhani',sans-serif",letterSpacing:.5}}>{char.nom}</span>
                         <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:2,background:sc.color+"14",color:sc.color,border:"1px solid "+sc.color+"30",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1}}>{sc.icon} {sc.label}</span>
+                        {isShared&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:2,background:"rgba(59,130,246,0.12)",color:"#3b82f6",border:"1px solid rgba(59,130,246,0.3)",fontFamily:"'Rajdhani',sans-serif",letterSpacing:1}}>🔗 Partagé</span>}
                       </div>
                       <div style={{fontSize:10,color:T.muted,fontFamily:"'DM Sans',sans-serif"}}>{char.compte||<span style={{fontStyle:"italic"}}>Sans compte</span>}</div>
                     </div>
                   </div>
                   <div style={{display:"flex",gap:3,flexShrink:0}}>
-                    <button onClick={()=>openEdit(char)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"4px 7px",color:T.textSub,cursor:"pointer",fontSize:11,fontFamily:T.font}}>✏️</button>
-                    <button onClick={()=>setDeleteConfirm(char.id)} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.2)",borderRadius:2,padding:"4px 7px",color:T.danger,cursor:"pointer",fontSize:11,fontFamily:T.font}}>🗑️</button>
+                    {canEdit&&<button onClick={()=>isShared?openEditShared(char):openEdit(char)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"4px 7px",color:T.textSub,cursor:"pointer",fontSize:11,fontFamily:T.font}}>✏️</button>}
+                    {!isShared&&<button onClick={()=>setDeleteConfirm(char.id)} style={{background:T.dangerBg,border:"1px solid rgba(239,68,68,0.2)",borderRadius:2,padding:"4px 7px",color:T.danger,cursor:"pointer",fontSize:11,fontFamily:T.font}}>🗑️</button>}
                   </div>
                 </div>
                 <div style={{display:"flex",gap:3,marginBottom:8}}>
                   {[{l:"CLASSE",v:char.classe,c:T.textSub},{l:"LEVEL",v:char.level,c:T.accent},{l:"MAX",v:char.level_max,c:T.accent}].map(s=>(<div key={s.l} style={{flex:1,background:T.panel,borderRadius:2,padding:"4px 5px",textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:7,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:1,fontFamily:"'Rajdhani',sans-serif"}}>{s.l}</div><div style={{fontWeight:700,fontSize:11,color:s.c,fontFamily:"'Rajdhani',sans-serif"}}>{s.v}</div></div>))}
                 </div>
                 <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                  <select value={char.etat} onChange={e=>handleEtatChange(char.id,e.target.value)} style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:2,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer",letterSpacing:.5}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select>
-                  <select value={char.surcat||"PVM"} onChange={e=>handleSurcatChange(char.id,e.target.value)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"5px 6px",color:T.text,fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer"}}><option value="PVM">🐉 PVM</option><option value="PVP">🏆 PVP</option></select>
+                  {canEdit?<select value={char.etat} onChange={e=>isShared?handleSharedEtatChange(char.id,e.target.value):handleEtatChange(char.id,e.target.value)} style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:2,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer",letterSpacing:.5}}>{ETATS.map(e=><option key={e}>{e}</option>)}</select>:<div style={{flex:1,background:ETAT_COLORS[char.etat]+"11",border:"1px solid "+ETAT_COLORS[char.etat]+"33",borderRadius:2,padding:"5px 6px",color:ETAT_COLORS[char.etat],fontWeight:700,fontSize:11,fontFamily:"'Rajdhani',sans-serif",textAlign:"center",letterSpacing:.5}}>{char.etat}</div>}
+                  {canEdit?<select value={char.surcat||"PVM"} onChange={e=>isShared?handleSharedSurcatChange(char.id,e.target.value):handleSurcatChange(char.id,e.target.value)} style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"5px 6px",color:T.text,fontWeight:700,fontSize:11,outline:"none",fontFamily:"'Rajdhani',sans-serif",cursor:"pointer"}}><option value="PVM">🐉 PVM</option><option value="PVP">🏆 PVP</option></select>:<div style={{background:T.panel,border:"1px solid "+T.border,borderRadius:2,padding:"5px 6px",color:T.text,fontWeight:700,fontSize:11,fontFamily:"'Rajdhani',sans-serif"}}>{char.surcat==="PVP"?"🏆 PVP":"🐉 PVM"}</div>}
                   <div style={{background:char.frigost!=="Continent"?T.accentBg:T.panel,border:"1px solid "+(char.frigost!=="Continent"?T.accentBorder:T.border),borderRadius:2,padding:"5px 7px",fontSize:11,color:char.frigost!=="Continent"?T.accent:T.muted,fontWeight:700,whiteSpace:"nowrap",fontFamily:"'Rajdhani',sans-serif"}}>{char.frigost!=="Continent"?`❄️ ${char.frigost==="Frigost 2"?"F2":char.frigost}`:"🌍"}</div>
                 </div>
               </div>
             </div>
           );})}
         </div>)}
-        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:9,letterSpacing:3,fontFamily:"'Rajdhani',sans-serif"}}>{filtered.length} PERSONNAGE{filtered.length!==1?"S":""} · SUPABASE ☁️</div>
-
-        {/* ── PERSONNAGES PARTAGÉS ── */}
-        {sharedChars.length>0&&(
+        <div style={{textAlign:"center",marginTop:12,color:T.muted,fontSize:9,letterSpacing:3,fontFamily:"'Rajdhani',sans-serif"}}>{filtered.filter(c=>!c._shared).length} PERSONNAGE{filtered.filter(c=>!c._shared).length!==1?"S":""}{sharedChars.length>0?` · ${sharedChars.length} PARTAGÉ${sharedChars.length!==1?"S":""}`:""} · SUPABASE ☁️</div>
+        {false&&(
           <div style={{marginTop:22}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"8px 12px",background:"rgba(59,130,246,0.06)",border:"1px solid rgba(59,130,246,0.2)",borderRadius:3}}>
               <span style={{fontSize:13}}>🔗</span>
