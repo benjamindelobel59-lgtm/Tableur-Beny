@@ -355,6 +355,7 @@ function CraftTab({ session, externalItems, onExternalConsumed, sharedCraftLists
   const [skipSubCraft,setSkipSubCraft]=useState(()=>{try{const r=localStorage.getItem(`craft_skip_${session.user.id}`);return r?JSON.parse(r):{}}catch{return {};}});
   const [collapsedItems,setCollapsedItems]=useState({});
   const [sortOrder,setSortOrder]=useState(null); // null=nom, "asc"=niveau↑, "desc"=niveau↓
+  const [sortQty,setSortQty]=useState(null); // null=inactif, "asc"=qté↑, "desc"=qté↓
   const debounceRef=useRef(null);
   useEffect(()=>{try{localStorage.setItem(lsKey,JSON.stringify(craftItems));}catch{}},[craftItems]);
   useEffect(()=>{try{localStorage.setItem(lsBanqKey,JSON.stringify(banque));}catch{}},[banque]);
@@ -487,6 +488,8 @@ function CraftTab({ session, externalItems, onExternalConsumed, sharedCraftLists
       const map={};for(const{item,qty}of craftItems)for(const r of(item.recipe||[])){const k=r.ankama_id??r.name;if(!map[k])map[k]={...r,qty:0,key:k};map[k].qty+=r.quantity*qty;}
       list=Object.values(map);
     }
+    if(sortQty==="asc")return list.sort((a,b)=>a.qty-b.qty);
+    if(sortQty==="desc")return list.sort((a,b)=>b.qty-a.qty);
     if(sortOrder==="asc")return list.sort((a,b)=>(a.level??0)-(b.level??0));
     if(sortOrder==="desc")return list.sort((a,b)=>(b.level??0)-(a.level??0));
     return list.sort((a,b)=>a.name.localeCompare(b.name));
@@ -695,11 +698,16 @@ function CraftTab({ session, externalItems, onExternalConsumed, sharedCraftLists
                 <div style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 130px 85px",padding:"8px 15px",background:T.panel,borderBottom:"1px solid "+T.border,alignItems:"center"}}>
                   <div style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700}}>Ressource</div>
                   <div style={{textAlign:"center"}}>
-                    <button onClick={()=>setSortOrder(s=>s==="asc"?"desc":s==="desc"?null:"asc")} style={{fontSize:9,color:sortOrder?T.accent:T.muted,background:sortOrder?T.accentBg:T.surface2,border:"1px solid "+(sortOrder?T.accentBorder:T.border2),borderRadius:4,padding:"2px 6px",cursor:"pointer",fontFamily:T.font,fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>
+                    <button onClick={()=>{setSortQty(null);setSortOrder(s=>s==="asc"?"desc":s==="desc"?null:"asc");}} style={{fontSize:9,color:sortOrder?T.accent:T.muted,background:sortOrder?T.accentBg:T.surface2,border:"1px solid "+(sortOrder?T.accentBorder:T.border2),borderRadius:4,padding:"2px 6px",cursor:"pointer",fontFamily:T.font,fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>
                       NIV {sortOrder==="asc"?"↑":sortOrder==="desc"?"↓":"⇅"}
                     </button>
                   </div>
-                  {["Nécessaire","En banque 🏦","Reste"].map((h)=>(<div key={h} style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:"center"}}>{h}</div>))}
+                  <div style={{textAlign:"center"}}>
+                    <button onClick={()=>{setSortOrder(null);setSortQty(s=>s==="asc"?"desc":s==="desc"?null:"asc");}} style={{fontSize:9,color:sortQty?T.accent:T.muted,background:sortQty?T.accentBg:T.surface2,border:"1px solid "+(sortQty?T.accentBorder:T.border2),borderRadius:4,padding:"2px 6px",cursor:"pointer",fontFamily:T.font,fontWeight:700,letterSpacing:1,whiteSpace:"nowrap"}}>
+                      QTÉ {sortQty==="asc"?"↑":sortQty==="desc"?"↓":"⇅"}
+                    </button>
+                  </div>
+                  {["En banque 🏦","Reste"].map((h)=>(<div key={h} style={{fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,textAlign:"center"}}>{h}</div>))}
                 </div>
                 <div>
                   {ingredients.map((ing,i)=>{const k=ing.key;const inBanque=bv(k);const reste=Math.max(0,ing.qty-inBanque);const complete=reste===0;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 60px 85px 130px 85px",padding:"10px 15px",borderBottom:"1px solid "+T.border2,alignItems:"center",background:complete?T.successBg:"transparent"}}>
